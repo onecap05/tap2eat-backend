@@ -1,0 +1,20 @@
+# Configuraciones de IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Java / Spring Boot (Archivos compilados)
+target/
+*.class
+*.jar
+*.war
+
+# Python (Servicio de reportes)
+__pycache__/
+venv/
+env/
+*.pyc
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db

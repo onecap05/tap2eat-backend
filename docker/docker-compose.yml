@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: tap2eat-postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: tap2eat_db
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:latest
+    container_name: tap2eat-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+
+  neo4j:
+    image: neo4j:latest
+    container_name: tap2eat-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/password123
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    restart: unless-stopped

@@ -1,4 +1,4 @@
-package com.tap2eat.api.finance;
+package com.tap2eat.identity.finance;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

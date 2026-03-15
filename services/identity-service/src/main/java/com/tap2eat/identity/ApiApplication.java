@@ -1,4 +1,4 @@
-package com.tap2eat.api;
+package com.tap2eat.identity;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

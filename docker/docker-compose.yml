@@ -1,6 +1,39 @@
 version: '3.8'
 
 services:
+#  traefik:
+#    image: traefik:v3.0
+#    container_name: tap2eat-traefik
+#    command:
+#      - --api.dashboard=true
+#      - --providers.docker=true
+#      - --providers.docker.exposedbydefault=false
+#      - --entrypoints.web.address=:80
+#      - --entrypoints.websecure.address=:443
+#      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+#      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#      - "8081:8080"
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock:ro
+#    restart: unless-stopped
+
+  identity-service:
+    build:
+      context: ../services/identity-service
+    container_name: tap2eat-identity-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tap2eat_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password123
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
   postgres:
     image: postgres:15
     container_name: tap2eat-postgres
@@ -10,7 +43,10 @@ services:
       POSTGRES_DB: tap2eat_db
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+
 
   mongodb:
     image: mongo:latest
@@ -20,6 +56,8 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: password123
     ports:
       - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
     restart: unless-stopped
 
   neo4j:
@@ -30,4 +68,11 @@ services:
     ports:
       - "7474:7474"
       - "7687:7687"
+    volumes:
+      - neo4j_data:/data
     restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mongo_data:
+  neo4j_data:

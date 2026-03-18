@@ -1,7 +1,9 @@
 package com.tap2eat.identity.controllers;
 
 import com.tap2eat.identity.dtos.request.RegisterRequest;
+import com.tap2eat.identity.dtos.response.RegisterResponse;
 import com.tap2eat.identity.services.IAuthService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +21,8 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody RegisterRequest request) {
-        authService.registerAccount(request);
-        return new ResponseEntity<>("Account created successfully", HttpStatus.CREATED);
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+        RegisterResponse response = authService.registerAccount(request);
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 }

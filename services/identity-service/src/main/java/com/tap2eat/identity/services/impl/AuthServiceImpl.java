@@ -12,6 +12,10 @@ import com.tap2eat.identity.services.IAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.tap2eat.identity.dtos.request.LoginRequest;
+import com.tap2eat.identity.dtos.response.LoginResponse;
+import com.tap2eat.identity.exceptions.InactiveAccountException;
+import com.tap2eat.identity.exceptions.InvalidCredentialsException;
 
 @Service
 public class AuthServiceImpl implements IAuthService {
@@ -52,6 +56,31 @@ public class AuthServiceImpl implements IAuthService {
         );
     }
 
+    @Override
+    public LoginResponse login(LoginRequest request) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        Account account = accountRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password."));
+
+        if (!Boolean.TRUE.equals(account.getIsActive())) {
+            throw new InactiveAccountException("The account is inactive.");
+        }
+
+        boolean passwordMatches = passwordEncoder.matches(request.getPassword(), account.getPasswordHash());
+
+        if (!passwordMatches) {
+            throw new InvalidCredentialsException("Invalid email or password.");
+        }
+
+        return new LoginResponse(
+                account.getId(),
+                account.getEmail(),
+                account.getRole().name(),
+                "Login successful."
+        );
+    }
+
     private Role validateRole(String roleValue){
         if (roleValue == null || roleValue.trim().isEmpty()){
             throw new InvalidRoleException("Role is required.");
@@ -59,12 +88,12 @@ public class AuthServiceImpl implements IAuthService {
 
         Role role;
         try{
-            role = Role.valueOf(roleValue.toUpperCase());
+            role = Role.valueOf(roleValue.trim().toUpperCase());
 
         } catch (IllegalArgumentException ex) {
             throw new InvalidRoleException("Invalid role: " + roleValue);
         } catch (Exception ex){
-            throw new InvalidRoleException("An error occurred while validating the role: " + ex.getMessage());
+            throw new InvalidRoleException("An error occurred while validating the role: " + roleValue);
         }
 
         if (role == Role.ADMIN){

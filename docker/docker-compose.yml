@@ -25,9 +25,11 @@ services:
       context: ../services/identity-service
     container_name: tap2eat-identity-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tap2eat_db
-      SPRING_DATASOURCE_USERNAME: admin
-      SPRING_DATASOURCE_PASSWORD: password123
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
     depends_on:
       - postgres
     ports:

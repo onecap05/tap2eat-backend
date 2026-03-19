@@ -9,6 +9,7 @@ import com.tap2eat.identity.models.Account;
 import com.tap2eat.identity.models.Role;
 import com.tap2eat.identity.repositories.IAccountRepository;
 import com.tap2eat.identity.services.IAuthService;
+import com.tap2eat.identity.services.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,11 +23,15 @@ public class AuthServiceImpl implements IAuthService {
 
     private final IAccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     @Autowired
-    public AuthServiceImpl(IAccountRepository accountRepository, PasswordEncoder passwordEncoder) {
+    public AuthServiceImpl(IAccountRepository accountRepository,
+                           PasswordEncoder passwordEncoder,
+                           JwtService jwtService) {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @Override
@@ -73,10 +78,13 @@ public class AuthServiceImpl implements IAuthService {
             throw new InvalidCredentialsException("Invalid email or password.");
         }
 
+        String token = jwtService.generateToken(account);
+
         return new LoginResponse(
                 account.getId(),
                 account.getEmail(),
                 account.getRole().name(),
+                token,
                 "Login successful."
         );
     }

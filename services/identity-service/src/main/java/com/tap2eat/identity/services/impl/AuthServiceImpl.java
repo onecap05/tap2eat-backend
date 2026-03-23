@@ -7,6 +7,7 @@ import com.tap2eat.identity.exceptions.InvalidRoleException;
 import com.tap2eat.identity.exceptions.WeakPasswordException;
 import com.tap2eat.identity.models.Account;
 import com.tap2eat.identity.models.Role;
+import com.tap2eat.identity.dtos.response.MeResponse;
 import com.tap2eat.identity.repositories.IAccountRepository;
 import com.tap2eat.identity.services.IAuthService;
 import com.tap2eat.identity.services.JwtService;
@@ -86,6 +87,21 @@ public class AuthServiceImpl implements IAuthService {
                 account.getRole().name(),
                 token,
                 "Login successful."
+        );
+    }
+
+    @Override
+    public MeResponse getCurrentAccount(String email) {
+        String normalizedEmail = email.trim().toLowerCase();
+
+        Account account = accountRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new InvalidCredentialsException("Authenticated account not found."));
+
+        return new MeResponse(
+                account.getId(),
+                account.getEmail(),
+                account.getRole().name(),
+                account.getIsActive()
         );
     }
 

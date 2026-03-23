@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.tap2eat.identity.dtos.response.MeResponse;
+import org.springframework.security.core.Authentication;
 import com.tap2eat.identity.dtos.request.LoginRequest;
 import com.tap2eat.identity.dtos.response.LoginResponse;
 
@@ -31,6 +33,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<MeResponse> me(Authentication authentication) {
+        MeResponse response = authService.getCurrentAccount(authentication.getName());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

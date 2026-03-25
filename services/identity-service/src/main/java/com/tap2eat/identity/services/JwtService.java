@@ -1,27 +1,29 @@
 package com.tap2eat.identity.services;
 
+import com.tap2eat.identity.config.PemUtils;
+import com.tap2eat.identity.config.RsaKeyProperties;
 import com.tap2eat.identity.models.Account;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.Date;
 
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    private final PrivateKey privateKey;
+    private final PublicKey publicKey;
 
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    public JwtService(RsaKeyProperties rsaKeyProperties) throws Exception {
+        this.privateKey = PemUtils.readPrivateKey(rsaKeyProperties.getPrivateKey());
+        this.publicKey = PemUtils.readPublicKey(rsaKeyProperties.getPublicKey());
     }
 
     public String generateToken(Account account) {
@@ -34,7 +36,7 @@ public class JwtService {
                 .claim("accountId", account.getId().toString())
                 .issuedAt(now)
                 .expiration(expirationDate)
-                .signWith(getSigningKey())
+                .signWith(privateKey, Jwts.SIG.RS256)
                 .compact();
     }
 
@@ -53,7 +55,7 @@ public class JwtService {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(publicKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

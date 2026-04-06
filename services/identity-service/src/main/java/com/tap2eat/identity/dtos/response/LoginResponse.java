@@ -1,63 +1,50 @@
 package com.tap2eat.identity.dtos.response;
 
-import java.util.UUID;
-
 public class LoginResponse {
 
-    private UUID id;
-    private String email;
-    private String role;
-    private String token;
-    private String message;
+    private String accessToken;
+    private String refreshToken;
+    private String tokenType;
+    private long expiresIn;
 
-    public LoginResponse() {
+    public LoginResponse() {}
+
+    public LoginResponse(String accessToken, String refreshToken, String tokenType, long expiresIn) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.tokenType = tokenType;
+        this.expiresIn = expiresIn;
     }
 
-    public LoginResponse(UUID id, String email, String role, String token, String message) {
-        this.id = id;
-        this.email = email;
-        this.role = role;
-        this.token = token;
-        this.message = message;
+    public String getAccessToken() {
+        return accessToken;
     }
 
-    public UUID getId() {
-        return id;
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
     }
 
-    public void setId(UUID id) {
-        this.id = id;
+    public String getRefreshToken() {
+        return refreshToken;
     }
 
-    public String getEmail() {
-        return email;
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public String getTokenType() {
+        return tokenType;
     }
 
-    public String getRole() {
-        return role;
+    public void setTokenType(String tokenType) {
+        this.tokenType = tokenType;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public long getExpiresIn() {
+        return expiresIn;
     }
 
-    public String getToken() {
-        return token;
-    }
-
-    public void setToken(String token) {
-        this.token = token;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
+    public void setExpiresIn(long expiresIn) {
+        this.expiresIn = expiresIn;
     }
 }

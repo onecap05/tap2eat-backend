@@ -60,4 +60,8 @@ public class JwtService {
                 .parseSignedClaims(token)
                 .getPayload();
     }
+
+    public long getJwtExpiration() {
+        return jwtExpiration;
+    }
 }

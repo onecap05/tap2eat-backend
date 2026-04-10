@@ -21,15 +21,23 @@ public class RefreshTokenService {
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
-    public RefreshToken createRefreshToken(Account account, String token) {
+    public RefreshToken createRefreshToken(Account account) {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setId(UUID.randomUUID());
-        refreshToken.setToken(token);
+        refreshToken.setToken(UUID.randomUUID().toString());
         refreshToken.setAccount(account);
         refreshToken.setRevoked(false);
         refreshToken.setCreatedAt(LocalDateTime.now());
         refreshToken.setExpiresAt(LocalDateTime.now().plusSeconds(refreshTokenExpiration / 1000));
 
         return refreshTokenRepository.save(refreshToken);
+    }
+
+    public void revokeToken(String token) {
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenAndRevokedFalse(token)
+                .orElseThrow(() -> new RuntimeException("Refresh token not found or already revoked."));
+
+        refreshToken.setRevoked(true);
+        refreshTokenRepository.save(refreshToken);
     }
 }

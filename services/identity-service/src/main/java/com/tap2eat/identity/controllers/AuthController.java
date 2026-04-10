@@ -1,5 +1,6 @@
 package com.tap2eat.identity.controllers;
 
+import com.tap2eat.identity.dtos.request.LogoutRequest;
 import com.tap2eat.identity.dtos.request.RegisterRequest;
 import com.tap2eat.identity.dtos.response.RegisterResponse;
 import com.tap2eat.identity.services.IAuthService;
@@ -40,5 +41,11 @@ public class AuthController {
     public ResponseEntity<MeResponse> me(Authentication authentication) {
         MeResponse response = authService.getCurrentAccount(authentication.getName());
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request) {
+        authService.logout(request);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }

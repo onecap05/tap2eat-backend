@@ -12,6 +12,8 @@ public interface IRefreshTokenRepository extends JpaRepository<RefreshToken, UUI
 
     Optional<RefreshToken> findByToken(String token);
 
+    Optional<RefreshToken> findByTokenAndRevokedFalse(String token);
+
     Optional<RefreshToken> findFirstByAccount_IdAndRevokedFalseOrderByCreatedAtDesc(UUID accountId);
 
     void deleteByAccount_Id(UUID accountId);

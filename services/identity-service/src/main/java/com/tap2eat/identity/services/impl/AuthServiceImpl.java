@@ -1,5 +1,6 @@
 package com.tap2eat.identity.services.impl;
 
+import com.tap2eat.identity.dtos.request.LogoutRequest;
 import com.tap2eat.identity.dtos.request.RegisterRequest;
 import com.tap2eat.identity.dtos.response.RegisterResponse;
 import com.tap2eat.identity.exceptions.EmailAlreadyRegisteredException;
@@ -84,7 +85,7 @@ public class AuthServiceImpl implements IAuthService {
         }
 
         String accessToken = jwtService.generateToken(account);
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(account, accessToken);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(account);
 
         return new LoginResponse(
                 accessToken,
@@ -92,6 +93,11 @@ public class AuthServiceImpl implements IAuthService {
                 "Bearer",
                 jwtService.getJwtExpiration()
         );
+    }
+
+    @Override
+    public void logout(LogoutRequest request) {
+        refreshTokenService.revokeToken(request.getRefreshToken());
     }
 
     @Override

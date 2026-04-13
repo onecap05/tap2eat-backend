@@ -40,4 +40,15 @@ public class RefreshTokenService {
         refreshToken.setRevoked(true);
         refreshTokenRepository.save(refreshToken);
     }
+
+    public RefreshToken validateRefreshToken(String token) {
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenAndRevokedFalse(token)
+                .orElseThrow(() -> new RuntimeException("Refresh token not found or already revoked."));
+
+        if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Refresh token has expired.");
+        }
+
+        return refreshToken;
+    }
 }

@@ -1,8 +1,10 @@
 package com.tap2eat.identity.controllers;
 
 import com.tap2eat.identity.dtos.request.LogoutRequest;
+import com.tap2eat.identity.dtos.request.RefreshTokenRequest;
 import com.tap2eat.identity.dtos.request.RegisterRequest;
 import com.tap2eat.identity.dtos.response.RegisterResponse;
+import com.tap2eat.identity.dtos.response.TokenRefreshResponse;
 import com.tap2eat.identity.services.IAuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,5 +49,11 @@ public class AuthController {
     public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request) {
         authService.logout(request);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenRefreshResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        TokenRefreshResponse response = authService.refreshToken(request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

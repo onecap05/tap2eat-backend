@@ -1,8 +1,10 @@
 package com.tap2eat.identity.services.impl;
 
 import com.tap2eat.identity.dtos.request.LogoutRequest;
+import com.tap2eat.identity.dtos.request.RefreshTokenRequest;
 import com.tap2eat.identity.dtos.request.RegisterRequest;
 import com.tap2eat.identity.dtos.response.RegisterResponse;
+import com.tap2eat.identity.dtos.response.TokenRefreshResponse;
 import com.tap2eat.identity.exceptions.EmailAlreadyRegisteredException;
 import com.tap2eat.identity.exceptions.InvalidRoleException;
 import com.tap2eat.identity.exceptions.WeakPasswordException;
@@ -21,6 +23,7 @@ import com.tap2eat.identity.dtos.request.LoginRequest;
 import com.tap2eat.identity.dtos.response.LoginResponse;
 import com.tap2eat.identity.exceptions.InactiveAccountException;
 import com.tap2eat.identity.exceptions.InvalidCredentialsException;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthServiceImpl implements IAuthService {
@@ -112,6 +115,21 @@ public class AuthServiceImpl implements IAuthService {
                 account.getEmail(),
                 account.getRole().name(),
                 account.getIsActive()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public TokenRefreshResponse refreshToken(RefreshTokenRequest request) {
+        RefreshToken refreshToken = refreshTokenService.validateRefreshToken(request.getRefreshToken());
+
+        Account account = refreshToken.getAccount();
+        String newAccessToken = jwtService.generateToken(account);
+
+        return new TokenRefreshResponse(
+                newAccessToken,
+                refreshToken.getToken(),
+                "Bearer"
         );
     }
 

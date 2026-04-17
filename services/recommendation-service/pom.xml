@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.tap2eat</groupId>
-	<artifactId>discovery-service</artifactId>
+	<artifactId>recommendation-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>discovery-service</name>
+	<name>recommendation-service</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>
 	<licenses>

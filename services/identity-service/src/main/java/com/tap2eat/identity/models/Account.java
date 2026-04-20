@@ -32,6 +32,9 @@ public class Account {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "email_verified", nullable = false)
+    private Boolean emailVerified = false;
+
     public Account() {
     }
 
@@ -39,8 +42,13 @@ public class Account {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-    }
 
+        if (this.emailVerified == null) {
+            this.emailVerified = false;
+        }
+
+    }
+//TODO cambiar lo de newAccount.setIsActive(true);
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
@@ -73,4 +81,12 @@ public class Account {
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Boolean getEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(Boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
 }

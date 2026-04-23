@@ -17,6 +17,10 @@ import com.tap2eat.identity.dtos.request.LoginRequest;
 import com.tap2eat.identity.dtos.response.LoginResponse;
 import com.tap2eat.identity.dtos.request.VerifyEmailRequest;
 import com.tap2eat.identity.dtos.response.VerifyEmailResponse;
+import com.tap2eat.identity.dtos.request.ForgotPasswordRequest;
+import com.tap2eat.identity.dtos.request.ResetPasswordRequest;
+import com.tap2eat.identity.dtos.response.ForgotPasswordResponse;
+import com.tap2eat.identity.dtos.response.ResetPasswordResponse;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -62,6 +66,18 @@ public class AuthController {
     @PostMapping("/verify-email")
     public ResponseEntity<VerifyEmailResponse> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         VerifyEmailResponse response = authService.verifyEmail(request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ForgotPasswordResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        ForgotPasswordResponse response = authService.forgotPassword(request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ResetPasswordResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        ResetPasswordResponse response = authService.resetPassword(request);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

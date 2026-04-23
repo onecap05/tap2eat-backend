@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.tap2eat.identity.models.EmailVerificationCode;
 import com.tap2eat.identity.services.IEmailVerificationCodeService;
 import com.tap2eat.identity.services.NotificationGrpcClient;
+import com.tap2eat.identity.models.PasswordResetCode;
+import com.tap2eat.identity.services.IPasswordResetCodeService;
 
 @Service
 public class AuthServiceImpl implements IAuthService {
@@ -31,19 +33,22 @@ public class AuthServiceImpl implements IAuthService {
     private final RefreshTokenService refreshTokenService;
     private final IEmailVerificationCodeService emailVerificationCodeService;
     private final NotificationGrpcClient notificationGrpcClient;
+    private final IPasswordResetCodeService passwordResetCodeService;
 
     @Autowired
     public AuthServiceImpl(IAccountRepository accountRepository,
                            PasswordEncoder passwordEncoder,
                            JwtService jwtService, RefreshTokenService refreshTokenService,
                            IEmailVerificationCodeService emailVerificationCodeService,
-                           NotificationGrpcClient notificationGrpcClient) {
+                           NotificationGrpcClient notificationGrpcClient,
+                           IPasswordResetCodeService passwordResetCodeService) {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.emailVerificationCodeService = emailVerificationCodeService;
         this.notificationGrpcClient = notificationGrpcClient;
+        this.passwordResetCodeService = passwordResetCodeService;
     }
 
     @Override
@@ -122,6 +127,52 @@ public class AuthServiceImpl implements IAuthService {
                 account.getRole().name(),
                 account.getIsActive()
         );
+    }
+
+    @Override
+    @Transactional
+    public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        Account account = accountRepository.findByEmail(normalizedEmail).orElse(null);
+
+        if (account == null) {
+            return new ForgotPasswordResponse("If the email exists, a recovery code has been sent.");
+        }
+
+        PasswordResetCode passwordResetCode = passwordResetCodeService.createCode(account);
+
+        notificationGrpcClient.sendVerificationEmail(
+                account.getEmail(),
+                passwordResetCode.getCode()
+        );
+
+        return new ForgotPasswordResponse("If the email exists, a recovery code has been sent.");
+    }
+
+    @Override
+    @Transactional
+    public ResetPasswordResponse resetPassword(ResetPasswordRequest request) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        Account account = accountRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid reset request."));
+
+        PasswordResetCode passwordResetCode = passwordResetCodeService.validateCode(request.getCode());
+
+        if (!passwordResetCode.getAccount().getId().equals(account.getId())) {
+            throw new InvalidCredentialsException("Invalid reset request.");
+        }
+
+        validatePasswordStrength(request.getNewPassword());
+
+        account.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        accountRepository.save(account);
+
+        passwordResetCodeService.markAsUsed(passwordResetCode);
+        refreshTokenService.deleteByAccountId(account.getId());
+
+        return new ResetPasswordResponse("Password reset successfully.");
     }
 
     @Transactional(readOnly = true)

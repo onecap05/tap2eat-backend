@@ -23,6 +23,7 @@ import com.tap2eat.identity.services.IEmailVerificationCodeService;
 import com.tap2eat.identity.services.NotificationGrpcClient;
 import com.tap2eat.identity.models.PasswordResetCode;
 import com.tap2eat.identity.services.IPasswordResetCodeService;
+import com.tap2eat.identity.exceptions.EmailNotVerifiedException;
 
 @Service
 public class AuthServiceImpl implements IAuthService {
@@ -90,6 +91,10 @@ public class AuthServiceImpl implements IAuthService {
 
         if (!Boolean.TRUE.equals(account.getIsActive())) {
             throw new InactiveAccountException("The account is inactive.");
+        }
+
+        if (!Boolean.TRUE.equals(account.getEmailVerified())) {
+            throw new EmailNotVerifiedException("Email is not verified.");
         }
 
         boolean passwordMatches = passwordEncoder.matches(request.getPassword(), account.getPasswordHash());
@@ -173,6 +178,31 @@ public class AuthServiceImpl implements IAuthService {
         refreshTokenService.deleteByAccountId(account.getId());
 
         return new ResetPasswordResponse("Password reset successfully.");
+    }
+
+    @Override
+    @Transactional
+    public ResendVerificationCodeResponse resendVerificationCode(ResendVerificationCodeRequest request) {
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        Account account = accountRepository.findByEmail(normalizedEmail).orElse(null);
+
+        if (account == null) {
+            return new ResendVerificationCodeResponse("If the account exists, a new verification code has been sent.");
+        }
+
+        if (Boolean.TRUE.equals(account.getEmailVerified())) {
+            return new ResendVerificationCodeResponse("Email is already verified.");
+        }
+
+        EmailVerificationCode verificationCode = emailVerificationCodeService.createCode(account);
+
+        notificationGrpcClient.sendVerificationEmail(
+                account.getEmail(),
+                verificationCode.getCode()
+        );
+
+        return new ResendVerificationCodeResponse("If the account exists, a new verification code has been sent.");
     }
 
     @Transactional(readOnly = true)

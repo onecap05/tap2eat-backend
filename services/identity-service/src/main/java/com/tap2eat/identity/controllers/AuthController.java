@@ -21,6 +21,8 @@ import com.tap2eat.identity.dtos.request.ForgotPasswordRequest;
 import com.tap2eat.identity.dtos.request.ResetPasswordRequest;
 import com.tap2eat.identity.dtos.response.ForgotPasswordResponse;
 import com.tap2eat.identity.dtos.response.ResetPasswordResponse;
+import com.tap2eat.identity.dtos.request.ResendVerificationCodeRequest;
+import com.tap2eat.identity.dtos.response.ResendVerificationCodeResponse;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -78,6 +80,14 @@ public class AuthController {
     @PostMapping("/reset-password")
     public ResponseEntity<ResetPasswordResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         ResetPasswordResponse response = authService.resetPassword(request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/resend-verification-code")
+    public ResponseEntity<ResendVerificationCodeResponse> resendVerificationCode(
+            @Valid @RequestBody ResendVerificationCodeRequest request
+    ) {
+        ResendVerificationCodeResponse response = authService.resendVerificationCode(request);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

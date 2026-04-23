@@ -1,13 +1,7 @@
 package com.tap2eat.identity.services;
 
-import com.tap2eat.identity.dtos.request.LoginRequest;
-import com.tap2eat.identity.dtos.request.LogoutRequest;
-import com.tap2eat.identity.dtos.request.RefreshTokenRequest;
-import com.tap2eat.identity.dtos.request.RegisterRequest;
-import com.tap2eat.identity.dtos.response.LoginResponse;
-import com.tap2eat.identity.dtos.response.MeResponse;
-import com.tap2eat.identity.dtos.response.RegisterResponse;
-import com.tap2eat.identity.dtos.response.TokenRefreshResponse;
+import com.tap2eat.identity.dtos.request.*;
+import com.tap2eat.identity.dtos.response.*;
 
 public interface IAuthService {
     RegisterResponse registerAccount(RegisterRequest request);
@@ -15,4 +9,5 @@ public interface IAuthService {
     MeResponse getCurrentAccount(String email);
     void logout(LogoutRequest request);
     TokenRefreshResponse refreshToken(RefreshTokenRequest request);
+    VerifyEmailResponse verifyEmail(VerifyEmailRequest request);
 }

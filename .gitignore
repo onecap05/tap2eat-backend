@@ -24,3 +24,7 @@ Thumbs.db
 **/*_pb2_grpc.py
 
 /docker/.env
+
+secrets/google/credentials.json
+secrets/google/tokens/
+secrets/

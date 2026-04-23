@@ -2,15 +2,15 @@ FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /app
 
-COPY services/identity-service/.mvn/ ./.mvn/
-COPY services/identity-service/mvnw ./
-COPY services/identity-service/pom.xml ./
+COPY services/notification-service/.mvn/ ./.mvn/
+COPY services/notification-service/mvnw ./
+COPY services/notification-service/pom.xml ./
 
 RUN chmod +x ./mvnw
 
 RUN ./mvnw dependency:go-offline
 
-COPY services/identity-service/src/ ./src/
+COPY services/notification-service/src/ ./src/
 COPY shared/protos/ /shared/protos/
 
 RUN ./mvnw clean package -DskipTests
@@ -21,7 +21,7 @@ WORKDIR /app
 
 COPY --from=build /app/target/*.jar ./app.jar
 
-EXPOSE 8081
-EXPOSE 9090
+EXPOSE 8084
+EXPOSE 9091
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

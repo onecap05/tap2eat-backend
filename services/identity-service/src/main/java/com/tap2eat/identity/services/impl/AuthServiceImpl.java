@@ -20,6 +20,7 @@ import com.tap2eat.identity.exceptions.InvalidCredentialsException;
 import org.springframework.transaction.annotation.Transactional;
 import com.tap2eat.identity.models.EmailVerificationCode;
 import com.tap2eat.identity.services.IEmailVerificationCodeService;
+import com.tap2eat.identity.services.NotificationGrpcClient;
 
 @Service
 public class AuthServiceImpl implements IAuthService {
@@ -29,17 +30,20 @@ public class AuthServiceImpl implements IAuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final IEmailVerificationCodeService emailVerificationCodeService;
+    private final NotificationGrpcClient notificationGrpcClient;
 
     @Autowired
     public AuthServiceImpl(IAccountRepository accountRepository,
                            PasswordEncoder passwordEncoder,
                            JwtService jwtService, RefreshTokenService refreshTokenService,
-                           IEmailVerificationCodeService emailVerificationCodeService) {
+                           IEmailVerificationCodeService emailVerificationCodeService,
+                           NotificationGrpcClient notificationGrpcClient) {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.emailVerificationCodeService = emailVerificationCodeService;
+        this.notificationGrpcClient = notificationGrpcClient;
     }
 
     @Override
@@ -62,6 +66,7 @@ public class AuthServiceImpl implements IAuthService {
 
         Account savedAccount = accountRepository.save(newAccount);
         EmailVerificationCode verificationCode = emailVerificationCodeService.createCode(savedAccount);
+        notificationGrpcClient.sendVerificationEmail(savedAccount.getEmail(), verificationCode.getCode());
 
         return new RegisterResponse(
                 savedAccount.getId(),

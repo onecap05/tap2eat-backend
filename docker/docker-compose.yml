@@ -1,7 +1,8 @@
 services:
   identity-service:
     build:
-      context: ../services/identity-service
+      context: ..
+      dockerfile: services/identity-service/Dockerfile
     container_name: tap2eat-identity-service
     environment:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
@@ -15,6 +16,27 @@ services:
       - neo4j
     ports:
       - "8081:8081"
+    restart: unless-stopped
+    networks:
+      - tap2eat-network
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+    container_name: tap2eat-notification-service
+    environment:
+      SERVER_PORT: ${NOTIFICATION_HTTP_PORT}
+      GRPC_SERVER_PORT: ${NOTIFICATION_GRPC_PORT}
+      GMAIL_CREDENTIALS_PATH: ${GMAIL_CREDENTIALS_PATH}
+      GMAIL_TOKENS_DIR: ${GMAIL_TOKENS_DIR}
+      GMAIL_FROM: ${GMAIL_FROM}
+    volumes:
+      - ../secrets/google/credentials.json:/run/secrets/google/credentials.json:ro
+      - ../secrets/google/tokens:/run/secrets/google/tokens
+    ports:
+      - "${NOTIFICATION_HTTP_PORT}:${NOTIFICATION_HTTP_PORT}"
+      - "${NOTIFICATION_GRPC_PORT}:${NOTIFICATION_GRPC_PORT}"
     restart: unless-stopped
     networks:
       - tap2eat-network

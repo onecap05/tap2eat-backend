@@ -1,17 +1,13 @@
 package com.tap2eat.identity.services.impl;
 
-import com.tap2eat.identity.dtos.request.LogoutRequest;
-import com.tap2eat.identity.dtos.request.RefreshTokenRequest;
-import com.tap2eat.identity.dtos.request.RegisterRequest;
-import com.tap2eat.identity.dtos.response.RegisterResponse;
-import com.tap2eat.identity.dtos.response.TokenRefreshResponse;
+import com.tap2eat.identity.dtos.request.*;
+import com.tap2eat.identity.dtos.response.*;
 import com.tap2eat.identity.exceptions.EmailAlreadyRegisteredException;
 import com.tap2eat.identity.exceptions.InvalidRoleException;
 import com.tap2eat.identity.exceptions.WeakPasswordException;
 import com.tap2eat.identity.models.Account;
 import com.tap2eat.identity.models.RefreshToken;
 import com.tap2eat.identity.models.Role;
-import com.tap2eat.identity.dtos.response.MeResponse;
 import com.tap2eat.identity.repositories.IAccountRepository;
 import com.tap2eat.identity.services.IAuthService;
 import com.tap2eat.identity.services.JwtService;
@@ -19,11 +15,12 @@ import com.tap2eat.identity.services.RefreshTokenService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import com.tap2eat.identity.dtos.request.LoginRequest;
-import com.tap2eat.identity.dtos.response.LoginResponse;
 import com.tap2eat.identity.exceptions.InactiveAccountException;
 import com.tap2eat.identity.exceptions.InvalidCredentialsException;
 import org.springframework.transaction.annotation.Transactional;
+import com.tap2eat.identity.models.EmailVerificationCode;
+import com.tap2eat.identity.services.IEmailVerificationCodeService;
+import com.tap2eat.identity.services.NotificationGrpcClient;
 
 @Service
 public class AuthServiceImpl implements IAuthService {
@@ -32,15 +29,21 @@ public class AuthServiceImpl implements IAuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final IEmailVerificationCodeService emailVerificationCodeService;
+    private final NotificationGrpcClient notificationGrpcClient;
 
     @Autowired
     public AuthServiceImpl(IAccountRepository accountRepository,
                            PasswordEncoder passwordEncoder,
-                           JwtService jwtService, RefreshTokenService refreshTokenService) {
+                           JwtService jwtService, RefreshTokenService refreshTokenService,
+                           IEmailVerificationCodeService emailVerificationCodeService,
+                           NotificationGrpcClient notificationGrpcClient) {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.emailVerificationCodeService = emailVerificationCodeService;
+        this.notificationGrpcClient = notificationGrpcClient;
     }
 
     @Override
@@ -58,15 +61,18 @@ public class AuthServiceImpl implements IAuthService {
         newAccount.setEmail(normalizedEmail);
         newAccount.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         newAccount.setRole(validatedRole);
+        newAccount.setEmailVerified(false);
         newAccount.setIsActive(true);
 
         Account savedAccount = accountRepository.save(newAccount);
+        EmailVerificationCode verificationCode = emailVerificationCodeService.createCode(savedAccount);
+        notificationGrpcClient.sendVerificationEmail(savedAccount.getEmail(), verificationCode.getCode());
 
         return new RegisterResponse(
                 savedAccount.getId(),
                 savedAccount.getEmail(),
                 savedAccount.getRole().name(),
-                "Account created successfully."
+                "Account created successfully. Please verify your email."
         );
     }
 
@@ -131,6 +137,20 @@ public class AuthServiceImpl implements IAuthService {
                 refreshToken.getToken(),
                 "Bearer"
         );
+    }
+
+    @Override
+    @Transactional
+    public VerifyEmailResponse verifyEmail(VerifyEmailRequest request) {
+        EmailVerificationCode verificationCode = emailVerificationCodeService.validateCode(request.getCode());
+
+        Account account = verificationCode.getAccount();
+        account.setEmailVerified(true);
+        accountRepository.save(account);
+
+        emailVerificationCodeService.markAsUsed(verificationCode);
+
+        return new VerifyEmailResponse("Email verified successfully.");
     }
 
     private Role validateRole(String roleValue){

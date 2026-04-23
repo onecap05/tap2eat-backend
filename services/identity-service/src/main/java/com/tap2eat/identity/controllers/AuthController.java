@@ -15,6 +15,8 @@ import com.tap2eat.identity.dtos.response.MeResponse;
 import org.springframework.security.core.Authentication;
 import com.tap2eat.identity.dtos.request.LoginRequest;
 import com.tap2eat.identity.dtos.response.LoginResponse;
+import com.tap2eat.identity.dtos.request.VerifyEmailRequest;
+import com.tap2eat.identity.dtos.response.VerifyEmailResponse;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -54,6 +56,12 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<TokenRefreshResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         TokenRefreshResponse response = authService.refreshToken(request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<VerifyEmailResponse> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        VerifyEmailResponse response = authService.verifyEmail(request);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

@@ -12,4 +12,5 @@ public interface IAuthService {
     VerifyEmailResponse verifyEmail(VerifyEmailRequest request);
     ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request);
     ResetPasswordResponse resetPassword(ResetPasswordRequest request);
+    ResendVerificationCodeResponse resendVerificationCode(ResendVerificationCodeRequest request);
 }

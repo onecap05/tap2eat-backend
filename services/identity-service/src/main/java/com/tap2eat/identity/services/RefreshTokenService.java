@@ -51,4 +51,8 @@ public class RefreshTokenService {
 
         return refreshToken;
     }
+
+    public void deleteByAccountId(UUID accountId) {
+        refreshTokenRepository.deleteByAccount_Id(accountId);
+    }
 }

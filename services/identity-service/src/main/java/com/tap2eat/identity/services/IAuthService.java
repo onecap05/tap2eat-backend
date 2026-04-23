@@ -10,4 +10,6 @@ public interface IAuthService {
     void logout(LogoutRequest request);
     TokenRefreshResponse refreshToken(RefreshTokenRequest request);
     VerifyEmailResponse verifyEmail(VerifyEmailRequest request);
+    ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request);
+    ResetPasswordResponse resetPassword(ResetPasswordRequest request);
 }

@@ -3,11 +3,15 @@ package com.tap2eat.notification.config;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.gmail.Gmail;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class GmailConfig {
+
+    @Value("${gmail.application-name}")
+    private String gmailApplicationName;
 
     @Bean
     public GsonFactory gsonFactory() {
@@ -21,7 +25,7 @@ public class GmailConfig {
                 gsonFactory,
                 gmailCredentialsProvider.getCredential()
         )
-                .setApplicationName("Tap2Eat Notification Service")
+                .setApplicationName(gmailApplicationName)
                 .build();
     }
 }

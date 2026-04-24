@@ -8,6 +8,9 @@ import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSource;
+
+import java.util.Locale;
 
 @GrpcService
 public class NotificationGrpcService extends NotificationServiceGrpc.NotificationServiceImplBase {
@@ -15,9 +18,12 @@ public class NotificationGrpcService extends NotificationServiceGrpc.Notificatio
     private static final Logger log = LoggerFactory.getLogger(NotificationGrpcService.class);
 
     private final IEmailSenderService emailSenderService;
+    private final MessageSource messageSource;
 
-    public NotificationGrpcService(IEmailSenderService emailSenderService) {
+    public NotificationGrpcService(IEmailSenderService emailSenderService,
+                                   MessageSource messageSource) {
         this.emailSenderService = emailSenderService;
+        this.messageSource = messageSource;
     }
 
     @Override
@@ -32,7 +38,7 @@ public class NotificationGrpcService extends NotificationServiceGrpc.Notificatio
 
             SendVerificationEmailResponse response = SendVerificationEmailResponse.newBuilder()
                     .setSuccess(true)
-                    .setMessage("Verification email sent successfully.")
+                    .setMessage(getMessage("notification.grpc.verification.success"))
                     .build();
 
             responseObserver.onNext(response);
@@ -42,11 +48,15 @@ public class NotificationGrpcService extends NotificationServiceGrpc.Notificatio
 
             SendVerificationEmailResponse response = SendVerificationEmailResponse.newBuilder()
                     .setSuccess(false)
-                    .setMessage("Failed to send verification email: " + ex.getMessage())
+                    .setMessage(getMessage("notification.grpc.verification.failure"))
                     .build();
 
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         }
+    }
+
+    private String getMessage(String key) {
+        return messageSource.getMessage(key, null, Locale.getDefault());
     }
 }

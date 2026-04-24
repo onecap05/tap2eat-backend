@@ -15,7 +15,7 @@ public class ModifierOption {
 
     private String id;
     private String name;
-    private BigDecimal priceDelta = BigDecimal.ZERO;
+    private BigDecimal additionalPrice = BigDecimal.ZERO;
     private Boolean isActive = true;
     private Integer displayOrder;
 }

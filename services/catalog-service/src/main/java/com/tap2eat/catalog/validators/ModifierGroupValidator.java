@@ -33,6 +33,7 @@ public final class ModifierGroupValidator {
 
         validateGroupName(group);
         validateSelectionRules(group);
+        validateDisplayOrder(group);
         validateOptions(group);
     }
 
@@ -60,6 +61,13 @@ public final class ModifierGroupValidator {
         }
 
         if (Boolean.TRUE.equals(group.getRequired()) && minSelections < 1) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_MODIFIER_GROUP);
+        }
+    }
+
+    private static void validateDisplayOrder(ModifierGroup group) {
+        Integer displayOrder = group.getDisplayOrder();
+        if (displayOrder != null && displayOrder < 0) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_MODIFIER_GROUP);
         }
     }
@@ -92,8 +100,8 @@ public final class ModifierGroupValidator {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_MODIFIER_OPTION);
         }
 
-        BigDecimal priceDelta = option.getPriceDelta();
-        if (priceDelta == null) {
+        BigDecimal additionalPrice = option.getAdditionalPrice();
+        if (additionalPrice == null || additionalPrice.compareTo(BigDecimal.ZERO) < 0) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_MODIFIER_OPTION);
         }
 

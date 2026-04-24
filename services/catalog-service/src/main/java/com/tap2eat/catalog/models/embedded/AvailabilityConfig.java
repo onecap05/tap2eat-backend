@@ -1,6 +1,7 @@
 package com.tap2eat.catalog.models.embedded;
 
 import com.tap2eat.catalog.models.enums.AvailabilityStatus;
+import com.tap2eat.catalog.models.enums.TemporaryUnavailabilityReason;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,7 +16,9 @@ import java.util.List;
 @AllArgsConstructor
 public class AvailabilityConfig {
 
-    private AvailabilityStatus status = AvailabilityStatus.ACTIVE;
+    private AvailabilityStatus status = AvailabilityStatus.AVAILABLE;
+    private TemporaryUnavailabilityReason temporaryReason;
+    private String temporaryReasonDetail;
 
     @Builder.Default
     private List<DailyAvailability> weeklySchedule = new ArrayList<>();

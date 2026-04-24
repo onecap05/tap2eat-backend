@@ -22,5 +22,5 @@ public class CategoryDocument extends BaseDocument {
     private String description;
     private Integer displayOrder;
     private ImageMetadata image;
-    private AvailabilityConfig baseAvailability;
+    private AvailabilityConfig availability;
 }

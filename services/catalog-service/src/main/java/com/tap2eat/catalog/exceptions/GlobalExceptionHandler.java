@@ -15,6 +15,8 @@ public class GlobalExceptionHandler {
             CatalogException exception,
             HttpServletRequest request
     ) {
+        exception.printStackTrace();
+
         CatalogErrorCode errorCode = exception.getErrorCode();
 
         ErrorResponse response = ErrorResponse.builder()
@@ -36,6 +38,8 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        exception.printStackTrace();
+
         CatalogErrorCode errorCode = CatalogErrorCode.INTERNAL_ERROR;
 
         ErrorResponse response = ErrorResponse.builder()

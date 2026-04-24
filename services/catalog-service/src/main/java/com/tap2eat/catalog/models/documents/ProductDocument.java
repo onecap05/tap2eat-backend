@@ -29,11 +29,11 @@ public class ProductDocument extends BaseDocument {
     private String name;
     private String description;
     private ProductType productType;
-    private BigDecimal basePrice;
+    private BigDecimal price;
     private ImageMetadata image;
     private Integer displayOrder;
     private Boolean featured = false;
-    private AvailabilityConfig baseAvailability;
+    private AvailabilityConfig availability;
 
     @Builder.Default
     private List<String> tags = new ArrayList<>();

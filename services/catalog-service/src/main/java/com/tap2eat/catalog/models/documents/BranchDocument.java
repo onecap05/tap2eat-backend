@@ -1,6 +1,8 @@
 package com.tap2eat.catalog.models.documents;
 
+import com.tap2eat.catalog.models.embedded.AvailabilityConfig;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -17,8 +19,13 @@ public class BranchDocument extends BaseDocument {
 
     private String restaurantId;
     private String name;
-    private String address;
-    private String phone;
+    private String phoneNumber;
+    private String formattedAddress;
     private Double latitude;
     private Double longitude;
+    private String googlePlaceId;
+    private AvailabilityConfig availability;
+
+    @Builder.Default
+    private Boolean isMainBranch = false;
 }

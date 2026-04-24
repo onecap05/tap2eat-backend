@@ -17,7 +17,9 @@ public enum CatalogErrorCode {
     UNAUTHORIZED_CATALOG_ACCESS("CATALOG_009", "Unauthorized catalog access", HttpStatus.FORBIDDEN),
     INTERNAL_ERROR("CATALOG_010", "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_RESTAURANT_DATA("CATALOG_011", "Invalid restaurant data", HttpStatus.BAD_REQUEST),
-    RESTAURANT_ALREADY_EXISTS("CATALOG_012", "Restaurant already exists for this owner", HttpStatus.CONFLICT);
+    RESTAURANT_ALREADY_EXISTS("CATALOG_012", "Restaurant already exists for this owner", HttpStatus.CONFLICT),
+    INVALID_BRANCH_DATA("CATALOG_013", "Invalid branch data", HttpStatus.BAD_REQUEST),
+    MAIN_BRANCH_ALREADY_EXISTS("CATALOG_014", "Main branch already exists for this restaurant", HttpStatus.CONFLICT);
 
     private final String code;
     private final String defaultMessage;

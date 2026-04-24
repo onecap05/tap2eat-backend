@@ -2,6 +2,8 @@ package com.tap2eat.catalog.controllers;
 
 import com.tap2eat.catalog.dtos.request.category.CreateCategoryRequest;
 import com.tap2eat.catalog.dtos.request.category.UpdateCategoryRequest;
+import com.tap2eat.catalog.dtos.response.category.CategoryResponse;
+import com.tap2eat.catalog.mappers.CatalogResponseMapper;
 import com.tap2eat.catalog.models.documents.CategoryDocument;
 import com.tap2eat.catalog.services.CategoryService;
 import lombok.RequiredArgsConstructor;
@@ -15,44 +17,51 @@ import java.util.List;
 public class CategoryController {
 
     private final CategoryService categoryService;
+    private final CatalogResponseMapper catalogResponseMapper;
 
     @PostMapping
-    public CategoryDocument createCategory(@RequestBody CreateCategoryRequest request) {
-        return categoryService.createCategory(request);
+    public CategoryResponse createCategory(@RequestBody CreateCategoryRequest request) {
+        CategoryDocument category = categoryService.createCategory(request);
+        return catalogResponseMapper.toCategoryResponse(category);
     }
 
     @PutMapping("/{categoryId}")
-    public CategoryDocument updateCategory(
+    public CategoryResponse updateCategory(
             @PathVariable String categoryId,
             @RequestParam String restaurantId,
             @RequestBody UpdateCategoryRequest request
     ) {
-        return categoryService.updateCategory(restaurantId, categoryId, request);
+        CategoryDocument category = categoryService.updateCategory(restaurantId, categoryId, request);
+        return catalogResponseMapper.toCategoryResponse(category);
     }
 
     @GetMapping("/{categoryId}")
-    public CategoryDocument getCategoryById(@PathVariable String categoryId) {
-        return categoryService.getCategoryById(categoryId);
+    public CategoryResponse getCategoryById(@PathVariable String categoryId) {
+        CategoryDocument category = categoryService.getCategoryById(categoryId);
+        return catalogResponseMapper.toCategoryResponse(category);
     }
 
     @GetMapping("/restaurant/{restaurantId}")
-    public List<CategoryDocument> getCategoriesByRestaurant(@PathVariable String restaurantId) {
-        return categoryService.getCategoriesByRestaurant(restaurantId);
+    public List<CategoryResponse> getCategoriesByRestaurant(@PathVariable String restaurantId) {
+        List<CategoryDocument> categories = categoryService.getCategoriesByRestaurant(restaurantId);
+        return catalogResponseMapper.toCategoryResponses(categories);
     }
 
     @PatchMapping("/{categoryId}/deactivate")
-    public CategoryDocument deactivateCategory(
+    public CategoryResponse deactivateCategory(
             @PathVariable String categoryId,
             @RequestParam String restaurantId
     ) {
-        return categoryService.deactivateCategory(restaurantId, categoryId);
+        CategoryDocument category = categoryService.deactivateCategory(restaurantId, categoryId);
+        return catalogResponseMapper.toCategoryResponse(category);
     }
 
     @PatchMapping("/{categoryId}/activate")
-    public CategoryDocument activateCategory(
+    public CategoryResponse activateCategory(
             @PathVariable String categoryId,
             @RequestParam String restaurantId
     ) {
-        return categoryService.activateCategory(restaurantId, categoryId);
+        CategoryDocument category = categoryService.activateCategory(restaurantId, categoryId);
+        return catalogResponseMapper.toCategoryResponse(category);
     }
 }

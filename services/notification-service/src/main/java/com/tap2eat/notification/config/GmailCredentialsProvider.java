@@ -23,22 +23,36 @@ public class GmailCredentialsProvider {
 
     private final String credentialsPath;
     private final String tokensDir;
+    private final int localReceiverPort;
 
     public GmailCredentialsProvider(
             @Value("${gmail.credentials.path}") String credentialsPath,
-            @Value("${gmail.tokens.dir}") String tokensDir
+            @Value("${gmail.tokens.dir}") String tokensDir,
+            @Value("${gmail.oauth.local-receiver-port}") int localReceiverPort
     ) {
         this.credentialsPath = credentialsPath;
         this.tokensDir = tokensDir;
+        this.localReceiverPort = localReceiverPort;
     }
 
     public Credential getCredential() throws Exception {
+        File credentialsFile = new File(credentialsPath);
+        File tokensDirectory = new File(tokensDir);
+
+        if (!credentialsFile.exists() || !credentialsFile.isFile()) {
+            throw new IllegalStateException("Gmail credentials file was not found at configured path.");
+        }
+
+        if (!tokensDirectory.exists()) {
+            tokensDirectory.mkdirs();
+        }
+
         NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         GsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
         GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(
                 jsonFactory,
-                new InputStreamReader(new FileInputStream(credentialsPath))
+                new InputStreamReader(new FileInputStream(credentialsFile))
         );
 
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
@@ -47,12 +61,12 @@ public class GmailCredentialsProvider {
                 clientSecrets,
                 List.of(GmailScopes.GMAIL_SEND)
         )
-                .setDataStoreFactory(new FileDataStoreFactory(new File(tokensDir)))
+                .setDataStoreFactory(new FileDataStoreFactory(tokensDirectory))
                 .setAccessType("offline")
                 .build();
 
         LocalServerReceiver receiver = new LocalServerReceiver.Builder()
-                .setPort(8888)
+                .setPort(localReceiverPort)
                 .build();
 
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");

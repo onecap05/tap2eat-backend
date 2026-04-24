@@ -2,6 +2,7 @@ package com.tap2eat.notification.services.impl;
 
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.Message;
+import com.tap2eat.notification.exceptions.EmailSendingException;
 import com.tap2eat.notification.services.IEmailSenderService;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
@@ -9,9 +10,11 @@ import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Locale;
 import java.util.Properties;
 
 @Service
@@ -20,12 +23,17 @@ public class EmailSenderServiceImpl implements IEmailSenderService {
     private static final Logger log = LoggerFactory.getLogger(EmailSenderServiceImpl.class);
 
     private final Gmail gmail;
+    private final MessageSource messageSource;
 
     @Value("${gmail.from}")
     private String from;
 
-    public EmailSenderServiceImpl(Gmail gmail) {
+    @Value("${notification.email.verification.expiration-minutes}")
+    private int verificationExpirationMinutes;
+
+    public EmailSenderServiceImpl(Gmail gmail, MessageSource messageSource) {
         this.gmail = gmail;
+        this.messageSource = messageSource;
     }
 
     @Override
@@ -33,16 +41,12 @@ public class EmailSenderServiceImpl implements IEmailSenderService {
         try {
             log.info("Preparing Gmail API request to send verification email to {}", to);
 
-            String subject = "Verifica tu cuenta en Tap2Eat";
-            String body = """
-                    Hola,
-
-                    Tu código de verificación para Tap2Eat es: %s
-
-                    Este código expira en 15 minutos.
-
-                    Si no solicitaste este registro, puedes ignorar este mensaje.
-                    """.formatted(code);
+            String subject = getMessage("notification.email.verification.subject");
+            String body = getMessage(
+                    "notification.email.verification.body",
+                    code,
+                    verificationExpirationMinutes
+            );
 
             MimeMessage email = createEmail(to, from, subject, body);
             Message message = createMessageWithEmail(email);
@@ -52,7 +56,10 @@ public class EmailSenderServiceImpl implements IEmailSenderService {
             log.info("Verification email sent successfully to {}", to);
         } catch (Exception ex) {
             log.error("Gmail API failed while sending email to {}", to, ex);
-            throw new RuntimeException("Failed to send verification email.", ex);
+            throw new EmailSendingException(
+                    getMessage("notification.email.verification.send.error"),
+                    ex
+            );
         }
     }
 
@@ -78,5 +85,9 @@ public class EmailSenderServiceImpl implements IEmailSenderService {
         Message message = new Message();
         message.setRaw(encodedEmail);
         return message;
+    }
+
+    private String getMessage(String key, Object... args) {
+        return messageSource.getMessage(key, args, Locale.getDefault());
     }
 }

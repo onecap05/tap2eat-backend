@@ -14,6 +14,7 @@ import com.tap2eat.catalog.services.ProductService;
 import com.tap2eat.catalog.validators.ProductValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import java.time.LocalDateTime;
 
 import java.util.List;
 
@@ -88,6 +89,36 @@ public class ProductServiceImpl implements ProductService {
 
         getCategoryOrThrow(categoryId);
         return productRepository.findAllByCategoryIdAndIsActiveTrue(categoryId);
+    }
+
+    @Override
+    public ProductDocument deactivateProduct(String restaurantId, String productId) {
+        if (isBlank(restaurantId) || isBlank(productId)) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
+        }
+
+        ProductDocument product = getProductOrThrow(productId);
+        validateProductOwnership(product, restaurantId);
+
+        product.setIsActive(Boolean.FALSE);
+        product.setDeletedAt(LocalDateTime.now());
+
+        return productRepository.save(product);
+    }
+
+    @Override
+    public ProductDocument activateProduct(String restaurantId, String productId) {
+        if (isBlank(restaurantId) || isBlank(productId)) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
+        }
+
+        ProductDocument product = getProductOrThrow(productId);
+        validateProductOwnership(product, restaurantId);
+
+        product.setIsActive(Boolean.TRUE);
+        product.setDeletedAt(null);
+
+        return productRepository.save(product);
     }
 
     private void validateCreateRequest(CreateProductRequest request) {

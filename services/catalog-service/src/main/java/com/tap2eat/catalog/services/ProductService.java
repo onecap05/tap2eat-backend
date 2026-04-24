@@ -17,4 +17,8 @@ public interface ProductService {
     List<ProductDocument> getProductsByRestaurant(String restaurantId);
 
     List<ProductDocument> getProductsByCategory(String categoryId);
+
+    ProductDocument deactivateProduct(String restaurantId, String productId);
+
+    ProductDocument activateProduct(String restaurantId, String productId);
 }

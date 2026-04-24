@@ -12,9 +12,12 @@ public enum CatalogErrorCode {
     INVALID_PRODUCT_DATA("CATALOG_006", "Invalid product data", HttpStatus.BAD_REQUEST),
     INVALID_BRANCH_OVERRIDE("CATALOG_007", "Invalid branch override", HttpStatus.BAD_REQUEST),
 
+
     RESOURCE_NOT_FOUND("CATALOG_008", "Requested resource was not found", HttpStatus.NOT_FOUND),
     UNAUTHORIZED_CATALOG_ACCESS("CATALOG_009", "Unauthorized catalog access", HttpStatus.FORBIDDEN),
-    INTERNAL_ERROR("CATALOG_010", "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
+    INTERNAL_ERROR("CATALOG_010", "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR),
+    INVALID_RESTAURANT_DATA("CATALOG_011", "Invalid restaurant data", HttpStatus.BAD_REQUEST),
+    RESTAURANT_ALREADY_EXISTS("CATALOG_012", "Restaurant already exists for this owner", HttpStatus.CONFLICT);
 
     private final String code;
     private final String defaultMessage;

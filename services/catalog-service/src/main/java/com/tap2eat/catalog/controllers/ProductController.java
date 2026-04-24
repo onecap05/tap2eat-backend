@@ -49,4 +49,20 @@ public class ProductController {
     public List<ProductDocument> getProductsByCategory(@PathVariable String categoryId) {
         return productService.getProductsByCategory(categoryId);
     }
+
+    @PatchMapping("/{productId}/deactivate")
+    public ProductDocument deactivateProduct(
+            @PathVariable String productId,
+            @RequestParam String restaurantId
+    ) {
+        return productService.deactivateProduct(restaurantId, productId);
+    }
+
+    @PatchMapping("/{productId}/activate")
+    public ProductDocument activateProduct(
+            @PathVariable String productId,
+            @RequestParam String restaurantId
+    ) {
+        return productService.activateProduct(restaurantId, productId);
+    }
 }

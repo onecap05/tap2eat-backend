@@ -5,7 +5,7 @@ import com.tap2eat.catalog.dtos.request.branch.UpdateBranchRequest;
 import com.tap2eat.catalog.dtos.response.branch.BranchResponse;
 import com.tap2eat.catalog.mappers.CatalogResponseMapper;
 import com.tap2eat.catalog.models.documents.BranchDocument;
-import com.tap2eat.catalog.services.BranchService;
+import com.tap2eat.catalog.services.IBranchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,12 +16,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BranchController {
 
-    private final BranchService branchService;
+    private final IBranchService IBranchService;
     private final CatalogResponseMapper catalogResponseMapper;
 
     @PostMapping
     public BranchResponse createBranch(@RequestBody CreateBranchRequest request) {
-        BranchDocument branch = branchService.createBranch(request);
+        BranchDocument branch = IBranchService.createBranch(request);
         return catalogResponseMapper.toBranchResponse(branch);
     }
 
@@ -31,19 +31,19 @@ public class BranchController {
             @RequestParam String restaurantId,
             @RequestBody UpdateBranchRequest request
     ) {
-        BranchDocument branch = branchService.updateBranch(restaurantId, branchId, request);
+        BranchDocument branch = IBranchService.updateBranch(restaurantId, branchId, request);
         return catalogResponseMapper.toBranchResponse(branch);
     }
 
     @GetMapping("/{branchId}")
     public BranchResponse getBranchById(@PathVariable String branchId) {
-        BranchDocument branch = branchService.getBranchById(branchId);
+        BranchDocument branch = IBranchService.getBranchById(branchId);
         return catalogResponseMapper.toBranchResponse(branch);
     }
 
     @GetMapping("/restaurant/{restaurantId}")
     public List<BranchResponse> getBranchesByRestaurant(@PathVariable String restaurantId) {
-        List<BranchDocument> branches = branchService.getBranchesByRestaurant(restaurantId);
+        List<BranchDocument> branches = IBranchService.getBranchesByRestaurant(restaurantId);
         return catalogResponseMapper.toBranchResponses(branches);
     }
 
@@ -52,7 +52,7 @@ public class BranchController {
             @PathVariable String branchId,
             @RequestParam String restaurantId
     ) {
-        BranchDocument branch = branchService.deactivateBranch(restaurantId, branchId);
+        BranchDocument branch = IBranchService.deactivateBranch(restaurantId, branchId);
         return catalogResponseMapper.toBranchResponse(branch);
     }
 
@@ -61,7 +61,7 @@ public class BranchController {
             @PathVariable String branchId,
             @RequestParam String restaurantId
     ) {
-        BranchDocument branch = branchService.activateBranch(restaurantId, branchId);
+        BranchDocument branch = IBranchService.activateBranch(restaurantId, branchId);
         return catalogResponseMapper.toBranchResponse(branch);
     }
 }

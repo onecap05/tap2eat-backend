@@ -7,10 +7,10 @@ import com.tap2eat.catalog.exceptions.CatalogValidationException;
 import com.tap2eat.catalog.mappers.ProductMapper;
 import com.tap2eat.catalog.models.documents.CategoryDocument;
 import com.tap2eat.catalog.models.documents.ProductDocument;
-import com.tap2eat.catalog.repositories.CategoryRepository;
-import com.tap2eat.catalog.repositories.ProductRepository;
-import com.tap2eat.catalog.repositories.RestaurantRepository;
-import com.tap2eat.catalog.services.ProductService;
+import com.tap2eat.catalog.repositories.ICategoryRepository;
+import com.tap2eat.catalog.repositories.IProductRepository;
+import com.tap2eat.catalog.repositories.IRestaurantRepository;
+import com.tap2eat.catalog.services.IProductService;
 import com.tap2eat.catalog.validators.ProductValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,11 +20,11 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class ProductServiceImpl implements ProductService {
+public class ProductServiceImpl implements IProductService {
 
-    private final ProductRepository productRepository;
-    private final RestaurantRepository restaurantRepository;
-    private final CategoryRepository categoryRepository;
+    private final IProductRepository IProductRepository;
+    private final IRestaurantRepository IRestaurantRepository;
+    private final ICategoryRepository ICategoryRepository;
     private final ProductMapper productMapper;
 
     @Override
@@ -39,7 +39,7 @@ public class ProductServiceImpl implements ProductService {
         ProductDocument product = productMapper.toDocument(request);
         ProductValidator.validate(product);
 
-        return productRepository.save(product);
+        return IProductRepository.save(product);
     }
 
     @Override
@@ -59,7 +59,7 @@ public class ProductServiceImpl implements ProductService {
         productMapper.updateDocument(existingProduct, request);
         ProductValidator.validate(existingProduct);
 
-        return productRepository.save(existingProduct);
+        return IProductRepository.save(existingProduct);
     }
 
     @Override
@@ -78,7 +78,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         validateRestaurantExists(restaurantId);
-        return productRepository.findAllByRestaurantIdAndIsActiveTrue(restaurantId);
+        return IProductRepository.findAllByRestaurantIdAndIsActiveTrue(restaurantId);
     }
 
     @Override
@@ -88,7 +88,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         getCategoryOrThrow(categoryId);
-        return productRepository.findAllByCategoryIdAndIsActiveTrue(categoryId);
+        return IProductRepository.findAllByCategoryIdAndIsActiveTrue(categoryId);
     }
 
     @Override
@@ -103,7 +103,7 @@ public class ProductServiceImpl implements ProductService {
         product.setIsActive(Boolean.FALSE);
         product.setDeletedAt(LocalDateTime.now());
 
-        return productRepository.save(product);
+        return IProductRepository.save(product);
     }
 
     @Override
@@ -118,7 +118,7 @@ public class ProductServiceImpl implements ProductService {
         product.setIsActive(Boolean.TRUE);
         product.setDeletedAt(null);
 
-        return productRepository.save(product);
+        return IProductRepository.save(product);
     }
 
     private void validateCreateRequest(CreateProductRequest request) {
@@ -130,18 +130,18 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private void validateRestaurantExists(String restaurantId) {
-        if (!restaurantRepository.existsById(restaurantId)) {
+        if (!IRestaurantRepository.existsById(restaurantId)) {
             throw new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 
     private CategoryDocument getCategoryOrThrow(String categoryId) {
-        return categoryRepository.findById(categoryId)
+        return ICategoryRepository.findById(categoryId)
                 .orElseThrow(() -> new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private ProductDocument getProductOrThrow(String productId) {
-        return productRepository.findById(productId)
+        return IProductRepository.findById(productId)
                 .orElseThrow(() -> new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND));
     }
 

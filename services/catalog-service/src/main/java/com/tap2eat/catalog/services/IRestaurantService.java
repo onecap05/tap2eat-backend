@@ -4,7 +4,7 @@ import com.tap2eat.catalog.dtos.request.restaurant.CreateRestaurantRequest;
 import com.tap2eat.catalog.dtos.request.restaurant.UpdateRestaurantRequest;
 import com.tap2eat.catalog.models.documents.RestaurantDocument;
 
-public interface RestaurantService {
+public interface IRestaurantService {
 
     RestaurantDocument createRestaurant(CreateRestaurantRequest request);
 

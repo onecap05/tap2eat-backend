@@ -6,7 +6,7 @@ import com.tap2eat.catalog.models.documents.ProductDocument;
 
 import java.util.List;
 
-public interface ProductService {
+public interface IProductService {
 
     ProductDocument createProduct(CreateProductRequest request);
 

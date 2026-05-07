@@ -5,6 +5,7 @@ services:
       dockerfile: services/identity-service/Dockerfile
     container_name: tap2eat-identity-service
     environment:
+      SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
@@ -12,10 +13,24 @@ services:
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
     depends_on:
       - postgres
-      - mongodb
-      - neo4j
     ports:
       - "8081:8081"
+    restart: unless-stopped
+    networks:
+      - tap2eat-network
+
+  catalog-service:
+    build:
+      context: ..
+      dockerfile: services/catalog-service/Dockerfile
+    container_name: tap2eat-catalog-service
+    environment:
+      SERVER_PORT: 8082
+      SPRING_DATA_MONGODB_URI: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/tap2eat_catalog?authSource=admin"
+    depends_on:
+      - mongodb
+    ports:
+      - "8082:8082"
     restart: unless-stopped
     networks:
       - tap2eat-network
@@ -57,11 +72,12 @@ services:
       - tap2eat-network
 
   mongodb:
-    image: mongo:latest
+    image: mongo:4.4
     container_name: tap2eat-mongo
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: tap2eat_catalog
     ports:
       - "27017:27017"
     volumes:
@@ -71,10 +87,10 @@ services:
       - tap2eat-network
 
   neo4j:
-    image: neo4j:latest
+    image: neo4j:5-community
     container_name: tap2eat-neo4j
     environment:
-      NEO4J_AUTH: ${NEO4J_USER}/${NEO4J_PASSWORD}
+      NEO4J_AUTH: "${NEO4J_USER}/${NEO4J_PASSWORD}"
     ports:
       - "7474:7474"
       - "7687:7687"

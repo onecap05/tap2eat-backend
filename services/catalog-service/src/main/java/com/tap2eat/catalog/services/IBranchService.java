@@ -6,7 +6,7 @@ import com.tap2eat.catalog.models.documents.BranchDocument;
 
 import java.util.List;
 
-public interface BranchService {
+public interface IBranchService {
 
     BranchDocument createBranch(CreateBranchRequest request);
 

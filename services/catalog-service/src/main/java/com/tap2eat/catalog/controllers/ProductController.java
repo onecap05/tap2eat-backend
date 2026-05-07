@@ -5,7 +5,7 @@ import com.tap2eat.catalog.dtos.request.product.UpdateProductRequest;
 import com.tap2eat.catalog.dtos.response.product.ProductResponse;
 import com.tap2eat.catalog.mappers.CatalogResponseMapper;
 import com.tap2eat.catalog.models.documents.ProductDocument;
-import com.tap2eat.catalog.services.ProductService;
+import com.tap2eat.catalog.services.IProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,12 +16,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProductController {
 
-    private final ProductService productService;
+    private final IProductService IProductService;
     private final CatalogResponseMapper catalogResponseMapper;
 
     @PostMapping
     public ProductResponse createProduct(@RequestBody CreateProductRequest request) {
-        ProductDocument product = productService.createProduct(request);
+        ProductDocument product = IProductService.createProduct(request);
         return catalogResponseMapper.toProductResponse(product);
     }
 
@@ -31,25 +31,25 @@ public class ProductController {
             @RequestParam String restaurantId,
             @RequestBody UpdateProductRequest request
     ) {
-        ProductDocument product = productService.updateProduct(restaurantId, productId, request);
+        ProductDocument product = IProductService.updateProduct(restaurantId, productId, request);
         return catalogResponseMapper.toProductResponse(product);
     }
 
     @GetMapping("/{productId}")
     public ProductResponse getProductById(@PathVariable String productId) {
-        ProductDocument product = productService.getProductById(productId);
+        ProductDocument product = IProductService.getProductById(productId);
         return catalogResponseMapper.toProductResponse(product);
     }
 
     @GetMapping("/restaurant/{restaurantId}")
     public List<ProductResponse> getProductsByRestaurant(@PathVariable String restaurantId) {
-        List<ProductDocument> products = productService.getProductsByRestaurant(restaurantId);
+        List<ProductDocument> products = IProductService.getProductsByRestaurant(restaurantId);
         return catalogResponseMapper.toProductResponses(products);
     }
 
     @GetMapping("/category/{categoryId}")
     public List<ProductResponse> getProductsByCategory(@PathVariable String categoryId) {
-        List<ProductDocument> products = productService.getProductsByCategory(categoryId);
+        List<ProductDocument> products = IProductService.getProductsByCategory(categoryId);
         return catalogResponseMapper.toProductResponses(products);
     }
 
@@ -58,7 +58,7 @@ public class ProductController {
             @PathVariable String productId,
             @RequestParam String restaurantId
     ) {
-        ProductDocument product = productService.deactivateProduct(restaurantId, productId);
+        ProductDocument product = IProductService.deactivateProduct(restaurantId, productId);
         return catalogResponseMapper.toProductResponse(product);
     }
 
@@ -67,7 +67,7 @@ public class ProductController {
             @PathVariable String productId,
             @RequestParam String restaurantId
     ) {
-        ProductDocument product = productService.activateProduct(restaurantId, productId);
+        ProductDocument product = IProductService.activateProduct(restaurantId, productId);
         return catalogResponseMapper.toProductResponse(product);
     }
 }

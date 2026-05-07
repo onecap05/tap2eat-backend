@@ -5,6 +5,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.Optional;
 
-public interface RestaurantRepository extends MongoRepository<RestaurantDocument, String> {
+public interface IRestaurantRepository extends MongoRepository<RestaurantDocument, String> {
     Optional<RestaurantDocument> findByOwnerAccountIdAndIsActiveTrue(String ownerAccountId);
 }

@@ -6,9 +6,9 @@ import com.tap2eat.catalog.exceptions.CatalogErrorCode;
 import com.tap2eat.catalog.exceptions.CatalogValidationException;
 import com.tap2eat.catalog.mappers.BranchMapper;
 import com.tap2eat.catalog.models.documents.BranchDocument;
-import com.tap2eat.catalog.repositories.BranchRepository;
-import com.tap2eat.catalog.repositories.RestaurantRepository;
-import com.tap2eat.catalog.services.BranchService;
+import com.tap2eat.catalog.repositories.IBranchRepository;
+import com.tap2eat.catalog.repositories.IRestaurantRepository;
+import com.tap2eat.catalog.services.IBranchService;
 import com.tap2eat.catalog.validators.BranchValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,10 +19,10 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
-public class BranchServiceImpl implements BranchService {
+public class BranchServiceImpl implements IBranchService {
 
-    private final BranchRepository branchRepository;
-    private final RestaurantRepository restaurantRepository;
+    private final IBranchRepository branchRepository;
+    private final IRestaurantRepository IRestaurantRepository;
     private final BranchMapper branchMapper;
 
     @Override
@@ -115,7 +115,7 @@ public class BranchServiceImpl implements BranchService {
     }
 
     private void validateRestaurantExists(String restaurantId) {
-        if (!restaurantRepository.existsById(restaurantId)) {
+        if (!IRestaurantRepository.existsById(restaurantId)) {
             throw new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND);
         }
     }

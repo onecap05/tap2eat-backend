@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface BranchModifierOptionOverrideRepository extends MongoRepository<BranchModifierOptionOverrideDocument, String> {
+public interface IBranchModifierOptionOverrideRepository extends MongoRepository<BranchModifierOptionOverrideDocument, String> {
     Optional<BranchModifierOptionOverrideDocument> findByBranchIdAndModifierOptionIdAndIsActiveTrue(String branchId, String modifierOptionId);
     List<BranchModifierOptionOverrideDocument> findAllByBranchIdAndIsActiveTrue(String branchId);
 }

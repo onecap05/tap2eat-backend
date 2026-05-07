@@ -5,7 +5,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 
-public interface ProductRepository extends MongoRepository<ProductDocument, String> {
+public interface IProductRepository extends MongoRepository<ProductDocument, String> {
     List<ProductDocument> findAllByRestaurantIdAndIsActiveTrue(String restaurantId);
     List<ProductDocument> findAllByCategoryIdAndIsActiveTrue(String categoryId);
 }

@@ -5,6 +5,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 
-public interface CategoryRepository extends MongoRepository<CategoryDocument, String> {
+public interface ICategoryRepository extends MongoRepository<CategoryDocument, String> {
     List<CategoryDocument> findAllByRestaurantIdAndIsActiveTrue(String restaurantId);
 }

@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 import java.util.Optional;
 
-public interface BranchRepository extends MongoRepository<BranchDocument, String> {
+public interface IBranchRepository extends MongoRepository<BranchDocument, String> {
 
     List<BranchDocument> findAllByRestaurantIdAndIsActiveTrue(String restaurantId);
 

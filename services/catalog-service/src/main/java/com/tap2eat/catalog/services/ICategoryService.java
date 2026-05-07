@@ -6,7 +6,7 @@ import com.tap2eat.catalog.models.documents.CategoryDocument;
 
 import java.util.List;
 
-public interface CategoryService {
+public interface ICategoryService {
 
     CategoryDocument createCategory(CreateCategoryRequest request);
 

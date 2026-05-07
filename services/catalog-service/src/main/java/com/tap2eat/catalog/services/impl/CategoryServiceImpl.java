@@ -6,9 +6,9 @@ import com.tap2eat.catalog.exceptions.CatalogErrorCode;
 import com.tap2eat.catalog.exceptions.CatalogValidationException;
 import com.tap2eat.catalog.mappers.CategoryMapper;
 import com.tap2eat.catalog.models.documents.CategoryDocument;
-import com.tap2eat.catalog.repositories.CategoryRepository;
-import com.tap2eat.catalog.repositories.RestaurantRepository;
-import com.tap2eat.catalog.services.CategoryService;
+import com.tap2eat.catalog.repositories.ICategoryRepository;
+import com.tap2eat.catalog.repositories.IRestaurantRepository;
+import com.tap2eat.catalog.services.ICategoryService;
 import com.tap2eat.catalog.validators.CategoryValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,10 +18,10 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class CategoryServiceImpl implements CategoryService {
+public class CategoryServiceImpl implements ICategoryService {
 
-    private final CategoryRepository categoryRepository;
-    private final RestaurantRepository restaurantRepository;
+    private final ICategoryRepository ICategoryRepository;
+    private final IRestaurantRepository IRestaurantRepository;
     private final CategoryMapper categoryMapper;
 
     @Override
@@ -32,7 +32,7 @@ public class CategoryServiceImpl implements CategoryService {
         CategoryDocument category = categoryMapper.toDocument(request);
         CategoryValidator.validate(category);
 
-        return categoryRepository.save(category);
+        return ICategoryRepository.save(category);
     }
 
     @Override
@@ -47,7 +47,7 @@ public class CategoryServiceImpl implements CategoryService {
         categoryMapper.updateDocument(category, request);
         CategoryValidator.validate(category);
 
-        return categoryRepository.save(category);
+        return ICategoryRepository.save(category);
     }
 
     @Override
@@ -66,7 +66,7 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         validateRestaurantExists(restaurantId);
-        return categoryRepository.findAllByRestaurantIdAndIsActiveTrue(restaurantId);
+        return ICategoryRepository.findAllByRestaurantIdAndIsActiveTrue(restaurantId);
     }
 
     @Override
@@ -81,7 +81,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setIsActive(Boolean.FALSE);
         category.setDeletedAt(LocalDateTime.now());
 
-        return categoryRepository.save(category);
+        return ICategoryRepository.save(category);
     }
 
     @Override
@@ -96,7 +96,7 @@ public class CategoryServiceImpl implements CategoryService {
         category.setIsActive(Boolean.TRUE);
         category.setDeletedAt(null);
 
-        return categoryRepository.save(category);
+        return ICategoryRepository.save(category);
     }
 
     private void validateCreateRequest(CreateCategoryRequest request) {
@@ -106,13 +106,13 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     private void validateRestaurantExists(String restaurantId) {
-        if (!restaurantRepository.existsById(restaurantId)) {
+        if (!IRestaurantRepository.existsById(restaurantId)) {
             throw new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 
     private CategoryDocument getCategoryOrThrow(String categoryId) {
-        return categoryRepository.findById(categoryId)
+        return ICategoryRepository.findById(categoryId)
                 .orElseThrow(() -> new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND));
     }
 

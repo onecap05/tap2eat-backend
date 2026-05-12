@@ -1,4 +1,21 @@
 services:
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: tap2eat-api-gateway
+    environment:
+      SERVER_PORT: 8080
+    depends_on:
+      - identity-service
+      - catalog-service
+      - notification-service
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - tap2eat-network
+
   identity-service:
     build:
       context: ..

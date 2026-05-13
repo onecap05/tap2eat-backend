@@ -1,5 +1,6 @@
 package com.tap2eat.catalog.services.impl;
 
+import com.tap2eat.catalog.config.CatalogImageProperties;
 import com.tap2eat.catalog.dtos.request.product.CreateProductRequest;
 import com.tap2eat.catalog.dtos.request.product.UpdateProductRequest;
 import com.tap2eat.catalog.exceptions.CatalogErrorCode;
@@ -7,6 +8,8 @@ import com.tap2eat.catalog.exceptions.CatalogValidationException;
 import com.tap2eat.catalog.mappers.ProductMapper;
 import com.tap2eat.catalog.models.documents.CategoryDocument;
 import com.tap2eat.catalog.models.documents.ProductDocument;
+import com.tap2eat.catalog.models.embedded.ImageMetadata;
+import com.tap2eat.catalog.models.enums.StorageProvider;
 import com.tap2eat.catalog.repositories.ICategoryRepository;
 import com.tap2eat.catalog.repositories.IProductRepository;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
@@ -14,8 +17,8 @@ import com.tap2eat.catalog.services.IProductService;
 import com.tap2eat.catalog.validators.ProductValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -26,6 +29,7 @@ public class ProductServiceImpl implements IProductService {
     private final IRestaurantRepository IRestaurantRepository;
     private final ICategoryRepository ICategoryRepository;
     private final ProductMapper productMapper;
+    private final CatalogImageProperties catalogImageProperties;
 
     @Override
     public ProductDocument createProduct(CreateProductRequest request) {
@@ -37,6 +41,8 @@ public class ProductServiceImpl implements IProductService {
         validateCategoryBelongsToRestaurant(category, request.restaurantId());
 
         ProductDocument product = productMapper.toDocument(request);
+        product.setImage(resolveProductImage(product.getImage()));
+
         ProductValidator.validate(product);
 
         return IProductRepository.save(product);
@@ -57,6 +63,8 @@ public class ProductServiceImpl implements IProductService {
         }
 
         productMapper.updateDocument(existingProduct, request);
+        existingProduct.setImage(resolveProductImage(existingProduct.getImage()));
+
         ProductValidator.validate(existingProduct);
 
         return IProductRepository.save(existingProduct);
@@ -78,6 +86,7 @@ public class ProductServiceImpl implements IProductService {
         }
 
         validateRestaurantExists(restaurantId);
+
         return IProductRepository.findAllByRestaurantIdAndIsActiveTrue(restaurantId);
     }
 
@@ -88,6 +97,7 @@ public class ProductServiceImpl implements IProductService {
         }
 
         getCategoryOrThrow(categoryId);
+
         return IProductRepository.findAllByCategoryIdAndIsActiveTrue(categoryId);
     }
 
@@ -119,6 +129,22 @@ public class ProductServiceImpl implements IProductService {
         product.setDeletedAt(null);
 
         return IProductRepository.save(product);
+    }
+
+    private ImageMetadata resolveProductImage(ImageMetadata image) {
+        if (image != null && image.getUrl() != null && !image.getUrl().isBlank()) {
+            return image;
+        }
+
+        ImageMetadata defaultImage = new ImageMetadata();
+        defaultImage.setUrl(catalogImageProperties.getDefaultProductUrl());
+        defaultImage.setObjectKey(catalogImageProperties.getDefaultProductObjectKey());
+        defaultImage.setProvider(StorageProvider.CLOUDINARY);
+        defaultImage.setContentType("image/webp");
+        defaultImage.setSize(null);
+        defaultImage.setUploadedAt(null);
+
+        return defaultImage;
     }
 
     private void validateCreateRequest(CreateProductRequest request) {

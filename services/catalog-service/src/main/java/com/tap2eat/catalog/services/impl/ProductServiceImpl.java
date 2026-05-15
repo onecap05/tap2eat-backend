@@ -13,6 +13,9 @@ import com.tap2eat.catalog.models.enums.StorageProvider;
 import com.tap2eat.catalog.repositories.ICategoryRepository;
 import com.tap2eat.catalog.repositories.IProductRepository;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
+import com.tap2eat.catalog.dtos.request.product.PauseProductRequest;
+import com.tap2eat.catalog.models.embedded.AvailabilityConfig;
+import com.tap2eat.catalog.models.enums.AvailabilityStatus;
 import com.tap2eat.catalog.services.IProductService;
 import com.tap2eat.catalog.validators.ProductValidator;
 import lombok.RequiredArgsConstructor;
@@ -127,6 +130,60 @@ public class ProductServiceImpl implements IProductService {
 
         product.setIsActive(Boolean.TRUE);
         product.setDeletedAt(null);
+
+        return IProductRepository.save(product);
+    }
+
+    @Override
+    public ProductDocument pauseProduct(String restaurantId, String productId, PauseProductRequest request) {
+        if (isBlank(restaurantId) || isBlank(productId) || request == null || request.temporaryReason() == null) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_AVAILABILITY);
+        }
+
+        ProductDocument product = getProductOrThrow(productId);
+        validateProductOwnership(product, restaurantId);
+
+        AvailabilityConfig availability = product.getAvailability();
+
+        if (availability == null) {
+            availability = new AvailabilityConfig();
+        }
+
+        availability.setStatus(AvailabilityStatus.TEMPORARILY_UNAVAILABLE);
+        availability.setTemporaryReason(request.temporaryReason());
+        availability.setTemporaryReasonDetail(
+                isBlank(request.temporaryReasonDetail()) ? null : request.temporaryReasonDetail().trim()
+        );
+
+        product.setAvailability(availability);
+
+        ProductValidator.validate(product);
+
+        return IProductRepository.save(product);
+    }
+
+    @Override
+    public ProductDocument resumeProduct(String restaurantId, String productId) {
+        if (isBlank(restaurantId) || isBlank(productId)) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
+        }
+
+        ProductDocument product = getProductOrThrow(productId);
+        validateProductOwnership(product, restaurantId);
+
+        AvailabilityConfig availability = product.getAvailability();
+
+        if (availability == null) {
+            availability = new AvailabilityConfig();
+        }
+
+        availability.setStatus(AvailabilityStatus.AVAILABLE);
+        availability.setTemporaryReason(null);
+        availability.setTemporaryReasonDetail(null);
+
+        product.setAvailability(availability);
+
+        ProductValidator.validate(product);
 
         return IProductRepository.save(product);
     }

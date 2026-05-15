@@ -3,6 +3,7 @@ package com.tap2eat.catalog.controllers;
 import com.tap2eat.catalog.dtos.request.product.CreateProductRequest;
 import com.tap2eat.catalog.dtos.request.product.UpdateProductRequest;
 import com.tap2eat.catalog.dtos.response.product.ProductResponse;
+import com.tap2eat.catalog.dtos.request.product.PauseProductRequest;
 import com.tap2eat.catalog.mappers.CatalogResponseMapper;
 import com.tap2eat.catalog.models.documents.ProductDocument;
 import com.tap2eat.catalog.services.IProductService;
@@ -59,6 +60,25 @@ public class ProductController {
             @RequestParam String restaurantId
     ) {
         ProductDocument product = IProductService.deactivateProduct(restaurantId, productId);
+        return catalogResponseMapper.toProductResponse(product);
+    }
+
+    @PatchMapping("/{productId}/pause")
+    public ProductResponse pauseProduct(
+            @PathVariable String productId,
+            @RequestParam String restaurantId,
+            @RequestBody PauseProductRequest request
+    ) {
+        ProductDocument product = IProductService.pauseProduct(restaurantId, productId, request);
+        return catalogResponseMapper.toProductResponse(product);
+    }
+
+    @PatchMapping("/{productId}/resume")
+    public ProductResponse resumeProduct(
+            @PathVariable String productId,
+            @RequestParam String restaurantId
+    ) {
+        ProductDocument product = IProductService.resumeProduct(restaurantId, productId);
         return catalogResponseMapper.toProductResponse(product);
     }
 

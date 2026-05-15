@@ -188,6 +188,16 @@ public class ProductServiceImpl implements IProductService {
         return IProductRepository.save(product);
     }
 
+    @Override
+    public ProductDocument deleteProduct(String restaurantId, String productId) {
+        return deactivateProduct(restaurantId, productId);
+    }
+
+    @Override
+    public ProductDocument restoreProduct(String restaurantId, String productId) {
+        return activateProduct(restaurantId, productId);
+    }
+
     private ImageMetadata resolveProductImage(ImageMetadata image) {
         if (image != null && image.getUrl() != null && !image.getUrl().isBlank()) {
             return image;

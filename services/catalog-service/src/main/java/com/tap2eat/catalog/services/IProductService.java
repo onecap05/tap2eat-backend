@@ -26,4 +26,8 @@ public interface IProductService {
     ProductDocument pauseProduct(String restaurantId, String productId, PauseProductRequest request);
 
     ProductDocument resumeProduct(String restaurantId, String productId);
+
+    ProductDocument deleteProduct(String restaurantId, String productId);
+
+    ProductDocument restoreProduct(String restaurantId, String productId);
 }

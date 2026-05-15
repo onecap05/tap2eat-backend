@@ -5,6 +5,7 @@ import com.tap2eat.catalog.models.enums.SelectionType;
 import java.util.List;
 
 public record ModifierGroupRequest(
+        String id,
         String name,
         SelectionType selectionType,
         Integer minSelections,

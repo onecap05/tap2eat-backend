@@ -4,6 +4,7 @@ import com.tap2eat.catalog.dtos.request.product.*;
 import com.tap2eat.catalog.models.documents.ProductDocument;
 import com.tap2eat.catalog.models.embedded.*;
 import com.tap2eat.catalog.models.enums.AvailabilityStatus;
+import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -92,6 +93,7 @@ public class ProductMapper {
         }
 
         ModifierGroup group = new ModifierGroup();
+        group.setId(resolveId(request.id()));
         group.setName(request.name());
         group.setSelectionType(request.selectionType());
         group.setMinSelections(request.minSelections() != null ? request.minSelections() : 0);
@@ -104,6 +106,29 @@ public class ProductMapper {
         return group;
     }
 
+    private ModifierOption mapModifierOption(ModifierOptionRequest request) {
+        if (request == null) {
+            return null;
+        }
+
+        ModifierOption option = new ModifierOption();
+        option.setId(resolveId(request.id()));
+        option.setName(request.name());
+        option.setAdditionalPrice(request.additionalPrice() != null ? request.additionalPrice() : java.math.BigDecimal.ZERO);
+        option.setIsActive(request.active() != null ? request.active() : Boolean.TRUE);
+        option.setDisplayOrder(request.displayOrder() != null ? request.displayOrder() : 0);
+
+        return option;
+    }
+
+    private String resolveId(String id) {
+        if (id == null || id.isBlank()) {
+            return UUID.randomUUID().toString();
+        }
+
+        return id;
+    }
+
     private List<ModifierOption> mapModifierOptions(List<ModifierOptionRequest> requests) {
         if (requests == null) {
             return Collections.emptyList();
@@ -114,19 +139,7 @@ public class ProductMapper {
                 .toList();
     }
 
-    private ModifierOption mapModifierOption(ModifierOptionRequest request) {
-        if (request == null) {
-            return null;
-        }
 
-        ModifierOption option = new ModifierOption();
-        option.setName(request.name());
-        option.setAdditionalPrice(request.additionalPrice() != null ? request.additionalPrice() : java.math.BigDecimal.ZERO);
-        option.setIsActive(request.active() != null ? request.active() : Boolean.TRUE);
-        option.setDisplayOrder(request.displayOrder() != null ? request.displayOrder() : 0);
-
-        return option;
-    }
 
     private ImageMetadata mapImage(ImageMetadataRequest request) {
         if (request == null) {

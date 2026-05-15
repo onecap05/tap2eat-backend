@@ -518,6 +518,110 @@
               ]
             }
           }
+        },
+        {
+          "name": "11 - Create customizable product with modifier groups",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('customizableProductName', 'Producto Armable Newman ' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Customizable product id exists', function () {",
+                  "    pm.expect(json.id).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Product type is CUSTOMIZABLE', function () {",
+                  "    pm.expect(json.productType).to.eql('CUSTOMIZABLE');",
+                  "});",
+                  "",
+                  "pm.test('Modifier groups were created', function () {",
+                  "    pm.expect(json.modifierGroups).to.be.an('array').with.lengthOf(3);",
+                  "});",
+                  "",
+                  "pm.test('Every modifier group has id', function () {",
+                  "    json.modifierGroups.forEach(group => {",
+                  "        pm.expect(group.id).to.be.a('string').and.not.empty;",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Every modifier option has id', function () {",
+                  "    json.modifierGroups.forEach(group => {",
+                  "        group.options.forEach(option => {",
+                  "            pm.expect(option.id).to.be.a('string').and.not.empty;",
+                  "        });",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Required SINGLE group has min 1 and max 1', function () {",
+                  "    const group = json.modifierGroups.find(group => group.name === 'Tipo de pan');",
+                  "    pm.expect(group).to.not.be.undefined;",
+                  "    pm.expect(group.selectionType).to.eql('SINGLE');",
+                  "    pm.expect(group.required).to.eql(true);",
+                  "    pm.expect(group.minSelections).to.eql(1);",
+                  "    pm.expect(group.maxSelections).to.eql(1);",
+                  "});",
+                  "",
+                  "pm.test('Optional SINGLE group has min 0 and max 1', function () {",
+                  "    const group = json.modifierGroups.find(group => group.name === 'Término de cocción');",
+                  "    pm.expect(group).to.not.be.undefined;",
+                  "    pm.expect(group.selectionType).to.eql('SINGLE');",
+                  "    pm.expect(group.required).to.eql(false);",
+                  "    pm.expect(group.minSelections).to.eql(0);",
+                  "    pm.expect(group.maxSelections).to.eql(1);",
+                  "});",
+                  "",
+                  "pm.test('MULTIPLE group allows up to two extras', function () {",
+                  "    const group = json.modifierGroups.find(group => group.name === 'Extras');",
+                  "    pm.expect(group).to.not.be.undefined;",
+                  "    pm.expect(group.selectionType).to.eql('MULTIPLE');",
+                  "    pm.expect(group.minSelections).to.eql(0);",
+                  "    pm.expect(group.maxSelections).to.eql(2);",
+                  "});",
+                  "",
+                  "pm.environment.set('customizableProductId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantId\": \"{{restaurantId}}\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"name\": \"{{customizableProductName}}\",\n  \"description\": \"Producto armable generado por pruebas automatizadas Newman.\",\n  \"productType\": \"CUSTOMIZABLE\",\n  \"price\": 120.0,\n  \"image\": null,\n  \"modifierGroups\": [\n    {\n      \"name\": \"Tipo de pan\",\n      \"selectionType\": \"SINGLE\",\n      \"minSelections\": 1,\n      \"maxSelections\": 1,\n      \"required\": true,\n      \"active\": true,\n      \"displayOrder\": 1,\n      \"options\": [\n        {\n          \"name\": \"Pan brioche\",\n          \"additionalPrice\": 0,\n          \"active\": true,\n          \"displayOrder\": 1\n        },\n        {\n          \"name\": \"Pan integral\",\n          \"additionalPrice\": 5,\n          \"active\": true,\n          \"displayOrder\": 2\n        }\n      ]\n    },\n    {\n      \"name\": \"Término de cocción\",\n      \"selectionType\": \"SINGLE\",\n      \"minSelections\": 0,\n      \"maxSelections\": 1,\n      \"required\": false,\n      \"active\": true,\n      \"displayOrder\": 2,\n      \"options\": [\n        {\n          \"name\": \"Tres cuartos\",\n          \"additionalPrice\": 0,\n          \"active\": true,\n          \"displayOrder\": 1\n        },\n        {\n          \"name\": \"Bien cocida\",\n          \"additionalPrice\": 0,\n          \"active\": true,\n          \"displayOrder\": 2\n        }\n      ]\n    },\n    {\n      \"name\": \"Extras\",\n      \"selectionType\": \"MULTIPLE\",\n      \"minSelections\": 0,\n      \"maxSelections\": 2,\n      \"required\": false,\n      \"active\": true,\n      \"displayOrder\": 3,\n      \"options\": [\n        {\n          \"name\": \"Queso extra\",\n          \"additionalPrice\": 15,\n          \"active\": true,\n          \"displayOrder\": 1\n        },\n        {\n          \"name\": \"Tocino\",\n          \"additionalPrice\": 20,\n          \"active\": true,\n          \"displayOrder\": 2\n        }\n      ]\n    }\n  ],\n  \"availability\": {\n    \"status\": \"AVAILABLE\",\n    \"temporaryReason\": null,\n    \"temporaryReasonDetail\": null,\n    \"weeklySchedule\": []\n  },\n  \"active\": true,\n  \"displayOrder\": 2,\n  \"featured\": true,\n  \"tags\": [\n    \"newman\",\n    \"customizable\"\n  ],\n  \"dietaryFlags\": [],\n  \"allergens\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
         }
       ]
     }

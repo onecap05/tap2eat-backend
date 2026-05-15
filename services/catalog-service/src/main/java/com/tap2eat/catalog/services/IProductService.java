@@ -1,6 +1,7 @@
 package com.tap2eat.catalog.services;
 
 import com.tap2eat.catalog.dtos.request.product.CreateProductRequest;
+import com.tap2eat.catalog.dtos.request.product.PauseProductRequest;
 import com.tap2eat.catalog.dtos.request.product.UpdateProductRequest;
 import com.tap2eat.catalog.models.documents.ProductDocument;
 
@@ -21,4 +22,8 @@ public interface IProductService {
     ProductDocument deactivateProduct(String restaurantId, String productId);
 
     ProductDocument activateProduct(String restaurantId, String productId);
+
+    ProductDocument pauseProduct(String restaurantId, String productId, PauseProductRequest request);
+
+    ProductDocument resumeProduct(String restaurantId, String productId);
 }

@@ -1,0 +1,525 @@
+{
+  "info": {
+    "name": "Tap2Eat Catalog Regression With Setup",
+    "_postman_id": "tap2eat-catalog-regression",
+    "description": "Regression tests for Tap2Eat catalog-service through the API Gateway. This collection creates its own test restaurant and category before product tests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Setup - Create test data",
+      "item": [
+        {
+          "name": "01 - Create test restaurant",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('ownerAccountId', 'test-owner-newman-' + Date.now());",
+                  "pm.environment.set('restaurantName', 'Restaurante Newman ' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Restaurant id exists', function () {",
+                  "    pm.expect(json.id).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.environment.set('restaurantId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerAccountId\": \"{{ownerAccountId}}\",\n  \"name\": \"{{restaurantName}}\",\n  \"description\": \"Restaurante generado por pruebas automatizadas Newman.\",\n  \"logo\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/restaurants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "restaurants"
+              ]
+            }
+          }
+        },
+        {
+          "name": "02 - Create test category",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('categoryName', 'Categoría Newman ' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Category id exists', function () {",
+                  "    pm.expect(json.id).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Category belongs to created restaurant', function () {",
+                  "    pm.expect(json.restaurantId).to.eql(pm.environment.get('restaurantId'));",
+                  "});",
+                  "",
+                  "pm.environment.set('categoryId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantId\": \"{{restaurantId}}\",\n  \"name\": \"{{categoryName}}\",\n  \"description\": \"Categor\\u00eda generada por pruebas automatizadas Newman.\",\n  \"displayOrder\": 1,\n  \"image\": null,\n  \"availability\": {\n    \"status\": \"AVAILABLE\",\n    \"temporaryReason\": null,\n    \"temporaryReasonDetail\": null,\n    \"weeklySchedule\": []\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products - Regression",
+      "item": [
+        {
+          "name": "03 - List products by restaurant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is an array', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/restaurant/{{restaurantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "restaurant",
+                "{{restaurantId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "04 - Create simple product without image",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('productName', 'Newman Product ' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Product id exists', function () {",
+                  "    pm.expect(json.id).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Created product belongs to expected restaurant and category', function () {",
+                  "    pm.expect(json.restaurantId).to.eql(pm.environment.get('restaurantId'));",
+                  "    pm.expect(json.categoryId).to.eql(pm.environment.get('categoryId'));",
+                  "});",
+                  "",
+                  "pm.test('Product type is SIMPLE', function () {",
+                  "    pm.expect(json.productType).to.eql('SIMPLE');",
+                  "});",
+                  "",
+                  "pm.test('Product is active', function () {",
+                  "    pm.expect(json.active).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.environment.set('productId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantId\": \"{{restaurantId}}\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"name\": \"{{productName}}\",\n  \"description\": \"Product generated by Newman regression tests.\",\n  \"productType\": \"SIMPLE\",\n  \"price\": 99.99,\n  \"image\": null,\n  \"modifierGroups\": [],\n  \"availability\": {\n    \"status\": \"AVAILABLE\",\n    \"temporaryReason\": null,\n    \"temporaryReasonDetail\": null,\n    \"weeklySchedule\": []\n  },\n  \"active\": true,\n  \"displayOrder\": 1,\n  \"featured\": false,\n  \"tags\": [\n    \"newman\"\n  ],\n  \"dietaryFlags\": [],\n  \"allergens\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "05 - Get created product by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Returned product id matches environment productId', function () {",
+                  "    pm.expect(json.id).to.eql(pm.environment.get('productId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "06 - Update created product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Product name was updated', function () {",
+                  "    pm.expect(json.name).to.eql(pm.environment.get('productName') + ' Updated');",
+                  "});",
+                  "",
+                  "pm.test('Product price was updated', function () {",
+                  "    pm.expect(Number(json.price)).to.eql(109.99);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{categoryId}}\",\n  \"name\": \"{{productName}} Updated\",\n  \"description\": \"Product updated by Newman regression tests.\",\n  \"productType\": \"SIMPLE\",\n  \"price\": 109.99,\n  \"image\": null,\n  \"modifierGroups\": [],\n  \"availability\": {\n    \"status\": \"AVAILABLE\",\n    \"temporaryReason\": null,\n    \"temporaryReasonDetail\": null,\n    \"weeklySchedule\": []\n  },\n  \"active\": true,\n  \"displayOrder\": 1,\n  \"featured\": true,\n  \"tags\": [\n    \"newman\",\n    \"updated\"\n  ],\n  \"dietaryFlags\": [],\n  \"allergens\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}?restaurantId={{restaurantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}"
+              ],
+              "query": [
+                {
+                  "key": "restaurantId",
+                  "value": "{{restaurantId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "07 - Pause created product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Product is temporarily unavailable', function () {",
+                  "    pm.expect(json.availability.status).to.eql('TEMPORARILY_UNAVAILABLE');",
+                  "});",
+                  "",
+                  "pm.test('Temporary reason is OUT_OF_STOCK', function () {",
+                  "    pm.expect(json.availability.temporaryReason).to.eql('OUT_OF_STOCK');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"temporaryReason\": \"OUT_OF_STOCK\",\n  \"temporaryReasonDetail\": \"Paused by Newman regression tests.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/pause?restaurantId={{restaurantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}",
+                "pause"
+              ],
+              "query": [
+                {
+                  "key": "restaurantId",
+                  "value": "{{restaurantId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "08 - Resume created product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Product is available again', function () {",
+                  "    pm.expect(json.availability.status).to.eql('AVAILABLE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/resume?restaurantId={{restaurantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}",
+                "resume"
+              ],
+              "query": [
+                {
+                  "key": "restaurantId",
+                  "value": "{{restaurantId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "09 - Delete created product logically",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Product is inactive after logical delete', function () {",
+                  "    pm.expect(json.active).to.eql(false);",
+                  "});",
+                  "",
+                  "pm.test('Deleted at exists after logical delete', function () {",
+                  "    pm.expect(json.deletedAt).to.not.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}/delete?restaurantId={{restaurantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{productId}}",
+                "delete"
+              ],
+              "query": [
+                {
+                  "key": "restaurantId",
+                  "value": "{{restaurantId}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "10 - Confirm logically deleted product is not listed as active",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Deleted product is not present in active product list', function () {",
+                  "    const productId = pm.environment.get('productId');",
+                  "    const found = json.some(product => product.id === productId);",
+                  "    pm.expect(found).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/restaurant/{{restaurantId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "restaurant",
+                "{{restaurantId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

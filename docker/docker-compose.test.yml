@@ -1,0 +1,4 @@
+services:
+  catalog-service:
+    environment:
+      SPRING_DATA_MONGODB_URI: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/tap2eat_catalog_test?authSource=admin"

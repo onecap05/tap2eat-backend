@@ -90,4 +90,22 @@ public class ProductController {
         ProductDocument product = IProductService.activateProduct(restaurantId, productId);
         return catalogResponseMapper.toProductResponse(product);
     }
+
+    @PatchMapping("/{productId}/delete")
+    public ProductResponse deleteProduct(
+            @PathVariable String productId,
+            @RequestParam String restaurantId
+    ) {
+        ProductDocument product = IProductService.deleteProduct(restaurantId, productId);
+        return catalogResponseMapper.toProductResponse(product);
+    }
+
+    @PatchMapping("/{productId}/restore")
+    public ProductResponse restoreProduct(
+            @PathVariable String productId,
+            @RequestParam String restaurantId
+    ) {
+        ProductDocument product = IProductService.restoreProduct(restaurantId, productId);
+        return catalogResponseMapper.toProductResponse(product);
+    }
 }

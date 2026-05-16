@@ -7,6 +7,7 @@ import com.tap2eat.catalog.dtos.request.product.PauseProductRequest;
 import com.tap2eat.catalog.mappers.CatalogResponseMapper;
 import com.tap2eat.catalog.models.documents.ProductDocument;
 import com.tap2eat.catalog.services.IProductService;
+import com.tap2eat.catalog.dtos.request.product.ReorderProductsRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -107,5 +108,11 @@ public class ProductController {
     ) {
         ProductDocument product = IProductService.restoreProduct(restaurantId, productId);
         return catalogResponseMapper.toProductResponse(product);
+    }
+
+    @PatchMapping("/reorder")
+    public List<ProductResponse> reorderProducts(@RequestBody ReorderProductsRequest request) {
+        List<ProductDocument> products = IProductService.reorderProducts(request);
+        return catalogResponseMapper.toProductResponses(products);
     }
 }

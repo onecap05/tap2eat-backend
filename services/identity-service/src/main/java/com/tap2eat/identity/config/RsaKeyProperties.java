@@ -1,23 +1,29 @@
 package com.tap2eat.identity.config;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.io.Resource;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConfigurationProperties(prefix = "jwt")
 public class RsaKeyProperties {
 
-    @Value("classpath:keys/private_key.pem")
-    private Resource privateKey;
-
-    @Value("classpath:keys/public_key.pem")
-    private Resource publicKey;
+    private Resource privateKeyPath;
+    private Resource publicKeyPath;
 
     public Resource getPrivateKey() {
-        return privateKey;
+        return privateKeyPath;
+    }
+
+    public void setPrivateKeyPath(Resource privateKeyPath) {
+        this.privateKeyPath = privateKeyPath;
     }
 
     public Resource getPublicKey() {
-        return publicKey;
+        return publicKeyPath;
+    }
+
+    public void setPublicKeyPath(Resource publicKeyPath) {
+        this.publicKeyPath = publicKeyPath;
     }
 }

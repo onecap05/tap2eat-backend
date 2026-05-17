@@ -15,6 +15,7 @@ import com.tap2eat.catalog.repositories.IProductRepository;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
 import com.tap2eat.catalog.dtos.request.product.PauseProductRequest;
 import com.tap2eat.catalog.dtos.request.product.ProductReorderItemRequest;
+import com.tap2eat.catalog.services.ICatalogAuthorizationService;
 import com.tap2eat.catalog.dtos.request.product.ReorderProductsRequest;
 import com.tap2eat.catalog.models.embedded.AvailabilityConfig;
 import com.tap2eat.catalog.models.enums.AvailabilityStatus;
@@ -42,10 +43,13 @@ public class ProductServiceImpl implements IProductService {
     private final ICategoryRepository ICategoryRepository;
     private final ProductMapper productMapper;
     private final CatalogImageProperties catalogImageProperties;
+    private final ICatalogAuthorizationService catalogAuthorizationService;
 
     @Override
     public ProductDocument createProduct(CreateProductRequest request) {
         validateCreateRequest(request);
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(request.restaurantId());
 
         validateRestaurantExists(request.restaurantId());
 
@@ -65,6 +69,8 @@ public class ProductServiceImpl implements IProductService {
         if (isBlank(restaurantId) || isBlank(productId) || request == null) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         ProductDocument existingProduct = getProductOrThrow(productId);
         validateProductOwnership(existingProduct, restaurantId);
@@ -88,7 +94,10 @@ public class ProductServiceImpl implements IProductService {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
         }
 
-        return getProductOrThrow(productId);
+        ProductDocument product = getProductOrThrow(productId);
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(product.getRestaurantId());
+
+        return product;
     }
 
     @Override
@@ -96,6 +105,8 @@ public class ProductServiceImpl implements IProductService {
         if (isBlank(restaurantId)) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         validateRestaurantExists(restaurantId);
 
@@ -110,6 +121,9 @@ public class ProductServiceImpl implements IProductService {
 
         getCategoryOrThrow(categoryId);
 
+        CategoryDocument category = getCategoryOrThrow(categoryId);
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(category.getRestaurantId());
+
         return IProductRepository.findAllByCategoryIdAndIsActiveTrue(categoryId);
     }
 
@@ -118,6 +132,8 @@ public class ProductServiceImpl implements IProductService {
         if (isBlank(restaurantId) || isBlank(productId)) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         ProductDocument product = getProductOrThrow(productId);
         validateProductOwnership(product, restaurantId);
@@ -134,6 +150,8 @@ public class ProductServiceImpl implements IProductService {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
         }
 
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
+
         ProductDocument product = getProductOrThrow(productId);
         validateProductOwnership(product, restaurantId);
 
@@ -148,6 +166,8 @@ public class ProductServiceImpl implements IProductService {
         if (isBlank(restaurantId) || isBlank(productId) || request == null || request.temporaryReason() == null) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_AVAILABILITY);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         ProductDocument product = getProductOrThrow(productId);
         validateProductOwnership(product, restaurantId);
@@ -176,6 +196,8 @@ public class ProductServiceImpl implements IProductService {
         if (isBlank(restaurantId) || isBlank(productId)) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         ProductDocument product = getProductOrThrow(productId);
         validateProductOwnership(product, restaurantId);
@@ -210,6 +232,7 @@ public class ProductServiceImpl implements IProductService {
     @Override
     public List<ProductDocument> reorderProducts(ReorderProductsRequest request) {
         validateReorderRequest(request);
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(request.restaurantId());
         validateRestaurantExists(request.restaurantId());
 
         CategoryDocument category = getCategoryOrThrow(request.categoryId());

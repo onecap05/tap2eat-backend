@@ -7,6 +7,7 @@ import com.tap2eat.catalog.exceptions.CatalogValidationException;
 import com.tap2eat.catalog.mappers.RestaurantMapper;
 import com.tap2eat.catalog.models.documents.RestaurantDocument;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
+import com.tap2eat.catalog.services.ICatalogAuthorizationService;
 import com.tap2eat.catalog.services.IRestaurantService;
 import com.tap2eat.catalog.validators.RestaurantValidator;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +20,13 @@ import java.time.LocalDateTime;
 public class RestaurantServiceImpl implements IRestaurantService {
 
     private final IRestaurantRepository IRestaurantRepository;
+    private final ICatalogAuthorizationService catalogAuthorizationService;
     private final RestaurantMapper restaurantMapper;
 
     @Override
     public RestaurantDocument createRestaurant(CreateRestaurantRequest request) {
         validateCreateRequest(request);
+        catalogAuthorizationService.validateCurrentAccountMatchesOwner(request.ownerAccountId());
 
         IRestaurantRepository.findByOwnerAccountIdAndIsActiveTrue(request.ownerAccountId())
                 .ifPresent(existing -> {
@@ -42,6 +45,9 @@ public class RestaurantServiceImpl implements IRestaurantService {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_RESTAURANT_DATA);
         }
 
+        catalogAuthorizationService.validateCurrentAccountMatchesOwner(ownerAccountId);
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
+
         RestaurantDocument restaurant = getRestaurantOrThrow(restaurantId);
         validateOwnership(restaurant, ownerAccountId);
 
@@ -57,6 +63,8 @@ public class RestaurantServiceImpl implements IRestaurantService {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_RESTAURANT_DATA);
         }
 
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
+
         return getRestaurantOrThrow(restaurantId);
     }
 
@@ -65,6 +73,8 @@ public class RestaurantServiceImpl implements IRestaurantService {
         if (isBlank(ownerAccountId)) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_RESTAURANT_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountMatchesOwner(ownerAccountId);
 
         return IRestaurantRepository.findByOwnerAccountIdAndIsActiveTrue(ownerAccountId)
                 .orElseThrow(() -> new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND));
@@ -75,6 +85,9 @@ public class RestaurantServiceImpl implements IRestaurantService {
         if (isBlank(restaurantId) || isBlank(ownerAccountId)) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_RESTAURANT_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountMatchesOwner(ownerAccountId);
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         RestaurantDocument restaurant = getRestaurantOrThrow(restaurantId);
         validateOwnership(restaurant, ownerAccountId);
@@ -91,6 +104,9 @@ public class RestaurantServiceImpl implements IRestaurantService {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_RESTAURANT_DATA);
         }
 
+        catalogAuthorizationService.validateCurrentAccountMatchesOwner(ownerAccountId);
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
+
         RestaurantDocument restaurant = getRestaurantOrThrow(restaurantId);
         validateOwnership(restaurant, ownerAccountId);
 
@@ -105,6 +121,7 @@ public class RestaurantServiceImpl implements IRestaurantService {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_RESTAURANT_DATA);
         }
     }
+
 
     private RestaurantDocument getRestaurantOrThrow(String restaurantId) {
         return IRestaurantRepository.findById(restaurantId)

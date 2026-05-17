@@ -8,4 +8,5 @@ import java.util.List;
 public interface IProductRepository extends MongoRepository<ProductDocument, String> {
     List<ProductDocument> findAllByRestaurantIdAndIsActiveTrue(String restaurantId);
     List<ProductDocument> findAllByCategoryIdAndIsActiveTrue(String categoryId);
+    boolean existsByCategoryIdAndIsActiveTrue(String categoryId);
 }

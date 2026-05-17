@@ -19,4 +19,6 @@ public interface ICategoryService {
     CategoryDocument deactivateCategory(String restaurantId, String categoryId);
 
     CategoryDocument activateCategory(String restaurantId, String categoryId);
+
+    CategoryDocument deleteCategory(String restaurantId, String categoryId);
 }

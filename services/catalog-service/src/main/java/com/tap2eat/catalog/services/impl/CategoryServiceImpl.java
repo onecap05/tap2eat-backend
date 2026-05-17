@@ -8,6 +8,7 @@ import com.tap2eat.catalog.mappers.CategoryMapper;
 import com.tap2eat.catalog.models.documents.CategoryDocument;
 import com.tap2eat.catalog.repositories.ICategoryRepository;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
+import com.tap2eat.catalog.repositories.IProductRepository;
 import com.tap2eat.catalog.services.ICategoryService;
 import com.tap2eat.catalog.validators.CategoryValidator;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,8 @@ public class CategoryServiceImpl implements ICategoryService {
     private final ICategoryRepository ICategoryRepository;
     private final IRestaurantRepository IRestaurantRepository;
     private final CategoryMapper categoryMapper;
+    private final IProductRepository IProductRepository;
+
 
     @Override
     public CategoryDocument createCategory(CreateCategoryRequest request) {
@@ -97,6 +100,32 @@ public class CategoryServiceImpl implements ICategoryService {
         category.setDeletedAt(null);
 
         return ICategoryRepository.save(category);
+    }
+
+    @Override
+    public CategoryDocument deleteCategory(String restaurantId, String categoryId) {
+        validateCategoryOperationRequest(restaurantId, categoryId);
+
+        CategoryDocument category = getCategoryOrThrow(categoryId);
+        validateCategoryOwnership(category, restaurantId);
+        validateCategoryHasNoActiveProducts(categoryId);
+
+        category.setIsActive(Boolean.FALSE);
+        category.setDeletedAt(LocalDateTime.now());
+
+        return ICategoryRepository.save(category);
+    }
+
+    private void validateCategoryOperationRequest(String restaurantId, String categoryId) {
+        if (isBlank(restaurantId) || isBlank(categoryId)) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_CATEGORY_DATA);
+        }
+    }
+
+    private void validateCategoryHasNoActiveProducts(String categoryId) {
+        if (IProductRepository.existsByCategoryIdAndIsActiveTrue(categoryId)) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_CATEGORY_DATA);
+        }
     }
 
     private void validateCreateRequest(CreateCategoryRequest request) {

@@ -3,7 +3,9 @@ package com.tap2eat.catalog.services;
 import com.tap2eat.catalog.dtos.request.product.CreateProductRequest;
 import com.tap2eat.catalog.dtos.request.product.PauseProductRequest;
 import com.tap2eat.catalog.dtos.request.product.UpdateProductRequest;
+import com.tap2eat.catalog.dtos.request.product.ReorderProductsRequest;
 import com.tap2eat.catalog.models.documents.ProductDocument;
+
 
 import java.util.List;
 
@@ -30,4 +32,6 @@ public interface IProductService {
     ProductDocument deleteProduct(String restaurantId, String productId);
 
     ProductDocument restoreProduct(String restaurantId, String productId);
+
+    List<ProductDocument> reorderProducts(ReorderProductsRequest request);
 }

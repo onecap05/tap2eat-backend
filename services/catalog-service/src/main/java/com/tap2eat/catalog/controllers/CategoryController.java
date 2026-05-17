@@ -64,4 +64,13 @@ public class CategoryController {
         CategoryDocument category = ICategoryService.activateCategory(restaurantId, categoryId);
         return catalogResponseMapper.toCategoryResponse(category);
     }
+
+    @PatchMapping("/{categoryId}/delete")
+    public CategoryResponse deleteCategory(
+            @PathVariable String categoryId,
+            @RequestParam String restaurantId
+    ) {
+        CategoryDocument category = ICategoryService.deleteCategory(restaurantId, categoryId);
+        return catalogResponseMapper.toCategoryResponse(category);
+    }
 }

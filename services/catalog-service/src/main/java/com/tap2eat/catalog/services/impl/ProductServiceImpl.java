@@ -14,6 +14,8 @@ import com.tap2eat.catalog.repositories.ICategoryRepository;
 import com.tap2eat.catalog.repositories.IProductRepository;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
 import com.tap2eat.catalog.dtos.request.product.PauseProductRequest;
+import com.tap2eat.catalog.dtos.request.product.ProductReorderItemRequest;
+import com.tap2eat.catalog.dtos.request.product.ReorderProductsRequest;
 import com.tap2eat.catalog.models.embedded.AvailabilityConfig;
 import com.tap2eat.catalog.models.enums.AvailabilityStatus;
 import com.tap2eat.catalog.services.IProductService;
@@ -23,6 +25,13 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -196,6 +205,118 @@ public class ProductServiceImpl implements IProductService {
     @Override
     public ProductDocument restoreProduct(String restaurantId, String productId) {
         return activateProduct(restaurantId, productId);
+    }
+
+    @Override
+    public List<ProductDocument> reorderProducts(ReorderProductsRequest request) {
+        validateReorderRequest(request);
+        validateRestaurantExists(request.restaurantId());
+
+        CategoryDocument category = getCategoryOrThrow(request.categoryId());
+        validateCategoryBelongsToRestaurant(category, request.restaurantId());
+
+        Map<String, ProductReorderItemRequest> reorderItemsByProductId = mapReorderItemsByProductId(request.products());
+        List<ProductDocument> products = getProductsForReorder(reorderItemsByProductId.keySet());
+
+        validateProductsForReorder(products, request.restaurantId(), request.categoryId(), reorderItemsByProductId.keySet());
+        applyProductDisplayOrders(products, reorderItemsByProductId);
+
+        List<ProductDocument> savedProducts = new ArrayList<>();
+        IProductRepository.saveAll(products).forEach(savedProducts::add);
+
+        return savedProducts.stream()
+                .sorted(Comparator.comparing(ProductDocument::getDisplayOrder))
+                .toList();
+    }
+
+    private void validateReorderRequest(ReorderProductsRequest request) {
+        if (request == null
+                || isBlank(request.restaurantId())
+                || isBlank(request.categoryId())
+                || request.products() == null
+                || request.products().isEmpty()) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
+        }
+
+        validateReorderItems(request.products());
+    }
+
+    private void validateReorderItems(List<ProductReorderItemRequest> products) {
+        Set<String> productIds = new HashSet<>();
+
+        for (ProductReorderItemRequest product : products) {
+            validateReorderItem(product);
+
+            if (!productIds.add(product.productId())) {
+                throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
+            }
+        }
+    }
+
+    private void validateReorderItem(ProductReorderItemRequest product) {
+        if (product == null
+                || isBlank(product.productId())
+                || product.displayOrder() == null
+                || product.displayOrder() < 0) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
+        }
+    }
+
+    private Map<String, ProductReorderItemRequest> mapReorderItemsByProductId(
+            List<ProductReorderItemRequest> products
+    ) {
+        return products.stream()
+                .collect(Collectors.toMap(
+                        ProductReorderItemRequest::productId,
+                        Function.identity()
+                ));
+    }
+
+    private List<ProductDocument> getProductsForReorder(Set<String> productIds) {
+        List<ProductDocument> products = new ArrayList<>();
+
+        IProductRepository.findAllById(productIds).forEach(products::add);
+
+        return products;
+    }
+
+    private void validateProductsForReorder(
+            List<ProductDocument> products,
+            String restaurantId,
+            String categoryId,
+            Set<String> requestedProductIds
+    ) {
+        if (products.size() != requestedProductIds.size()) {
+            throw new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        for (ProductDocument product : products) {
+            validateProductCanBeReordered(product, restaurantId, categoryId);
+        }
+    }
+
+    private void validateProductCanBeReordered(
+            ProductDocument product,
+            String restaurantId,
+            String categoryId
+    ) {
+        if (product == null || Boolean.FALSE.equals(product.getIsActive())) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_PRODUCT_DATA);
+        }
+
+        if (!restaurantId.equals(product.getRestaurantId()) || !categoryId.equals(product.getCategoryId())) {
+            throw new CatalogValidationException(CatalogErrorCode.UNAUTHORIZED_CATALOG_ACCESS);
+        }
+    }
+
+    private void applyProductDisplayOrders(
+            List<ProductDocument> products,
+            Map<String, ProductReorderItemRequest> reorderItemsByProductId
+    ) {
+        for (ProductDocument product : products) {
+            ProductReorderItemRequest reorderItem = reorderItemsByProductId.get(product.getId());
+            product.setDisplayOrder(reorderItem.displayOrder());
+        }
     }
 
     private ImageMetadata resolveProductImage(ImageMetadata image) {

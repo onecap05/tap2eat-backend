@@ -26,6 +26,7 @@ import com.tap2eat.identity.services.IPasswordResetCodeService;
 import com.tap2eat.identity.exceptions.EmailNotVerifiedException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
+import com.tap2eat.identity.models.AccountProfile;
 
 import java.util.Locale;
 
@@ -81,6 +82,16 @@ public class AuthServiceImpl implements IAuthService {
         newAccount.setEmailVerified(false);
         newAccount.setIsActive(true);
 
+        AccountProfile accountProfile = new AccountProfile();
+        accountProfile.setAccount(newAccount);
+        accountProfile.setFirstName(request.getFirstName().trim());
+        accountProfile.setLastName(request.getLastName().trim());
+        accountProfile.setPhone(request.getPhone() != null && !request.getPhone().trim().isEmpty()
+                ? request.getPhone().trim()
+                : null);
+
+        newAccount.setProfile(accountProfile);
+
         Account savedAccount = accountRepository.save(newAccount);
         EmailVerificationCode verificationCode = emailVerificationCodeService.createCode(savedAccount);
         notificationGrpcClient.sendVerificationEmail(savedAccount.getEmail(), verificationCode.getCode());
@@ -130,6 +141,7 @@ public class AuthServiceImpl implements IAuthService {
         refreshTokenService.revokeToken(request.getRefreshToken());
     }
 
+    @Transactional(readOnly = true)
     @Override
     public MeResponse getCurrentAccount(String email) {
         String normalizedEmail = normalizeEmail(email);
@@ -137,11 +149,17 @@ public class AuthServiceImpl implements IAuthService {
         Account account = accountRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new InvalidCredentialsException(getMessage("auth.authenticated.account.not.found")));
 
+        AccountProfile profile = account.getProfile();
+
         return new MeResponse(
                 account.getId(),
                 account.getEmail(),
                 account.getRole().name(),
-                account.getIsActive()
+                account.getIsActive(),
+                account.getEmailVerified(),
+                profile != null ? profile.getFirstName() : null,
+                profile != null ? profile.getLastName() : null,
+                profile != null ? profile.getPhone() : null
         );
     }
 

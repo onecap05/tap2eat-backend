@@ -18,17 +18,65 @@ public class RegisterRequest {
     @NotBlank(message = "Role is required")
     private String role;
 
-    public RegisterRequest() {}
+    @NotBlank(message = "First name is required")
+    @Size(max = 100, message = "First name must not exceed 100 characters")
+    private String firstName;
 
-    public String getEmail() { return email; }
+    @NotBlank(message = "Last name is required")
+    @Size(max = 100, message = "Last name must not exceed 100 characters")
+    private String lastName;
 
-    public void setEmail(String email) { this.email = email; }
+    @Size(max = 30, message = "Phone must not exceed 30 characters")
+    private String phone;
 
-    public String getPassword() { return password; }
+    public RegisterRequest() {
+    }
 
-    public void setPassword(String password) { this.password = password; }
+    public String getEmail() {
+        return email;
+    }
 
-    public String getRole() { return role; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    public void setRole(String role) { this.role = role; }
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
 }

@@ -20,7 +20,18 @@ public class BranchDocument extends BaseDocument {
     private String restaurantId;
     private String name;
     private String phoneNumber;
+
     private String formattedAddress;
+    private String street;
+    private String exteriorNumber;
+    private String interiorNumber;
+    private String neighborhood;
+    private String city;
+    private String state;
+    private String postalCode;
+    private String country;
+    private String addressReference;
+
     private Double latitude;
     private Double longitude;
     private String googlePlaceId;

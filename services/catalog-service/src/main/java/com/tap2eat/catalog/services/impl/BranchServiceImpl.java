@@ -9,6 +9,7 @@ import com.tap2eat.catalog.models.documents.BranchDocument;
 import com.tap2eat.catalog.repositories.IBranchRepository;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
 import com.tap2eat.catalog.services.ICatalogAuthorizationService;
+import com.tap2eat.catalog.services.IAddressValidationService;
 import com.tap2eat.catalog.services.IBranchService;
 import com.tap2eat.catalog.validators.BranchValidator;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class BranchServiceImpl implements IBranchService {
     private final IBranchRepository branchRepository;
     private final IRestaurantRepository IRestaurantRepository;
     private final ICatalogAuthorizationService catalogAuthorizationService;
+    private final IAddressValidationService addressValidationService;
     private final BranchMapper branchMapper;
 
     @Override
@@ -32,6 +34,14 @@ public class BranchServiceImpl implements IBranchService {
         validateCreateRequest(request);
         catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(request.restaurantId());
         validateRestaurantExists(request.restaurantId());
+
+        addressValidationService.validateMexicanAddress(
+                request.postalCode(),
+                request.neighborhood(),
+                request.city(),
+                request.state(),
+                request.country()
+        );
 
         BranchDocument branch = branchMapper.toDocument(request);
         BranchValidator.validate(branch);
@@ -48,6 +58,14 @@ public class BranchServiceImpl implements IBranchService {
         catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         validateRestaurantExists(restaurantId);
+
+        addressValidationService.validateMexicanAddress(
+                request.postalCode(),
+                request.neighborhood(),
+                request.city(),
+                request.state(),
+                request.country()
+        );
 
         BranchDocument branch = getBranchOrThrow(branchId);
         validateBranchOwnership(branch, restaurantId);

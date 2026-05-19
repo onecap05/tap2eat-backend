@@ -6,4 +6,6 @@ import org.springframework.web.multipart.MultipartFile;
 public interface IImageUploadService {
 
     ImageMetadataResponse uploadProductImage(MultipartFile file);
+
+    ImageMetadataResponse uploadRestaurantLogo(MultipartFile file);
 }

@@ -19,7 +19,8 @@ public enum CatalogErrorCode {
     INVALID_RESTAURANT_DATA("CATALOG_011", "Invalid restaurant data", HttpStatus.BAD_REQUEST),
     RESTAURANT_ALREADY_EXISTS("CATALOG_012", "Restaurant already exists for this owner", HttpStatus.CONFLICT),
     INVALID_BRANCH_DATA("CATALOG_013", "Invalid branch data", HttpStatus.BAD_REQUEST),
-    MAIN_BRANCH_ALREADY_EXISTS("CATALOG_014", "Main branch already exists for this restaurant", HttpStatus.CONFLICT);
+    MAIN_BRANCH_ALREADY_EXISTS("CATALOG_014", "Main branch already exists for this restaurant", HttpStatus.CONFLICT),
+    RESTAURANT_HAS_ACTIVE_BRANCHES("CATALOG_015", "Restaurant still has active branches", HttpStatus.CONFLICT);
 
     private final String code;
     private final String defaultMessage;

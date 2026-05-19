@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface ICategoryRepository extends MongoRepository<CategoryDocument, String> {
     List<CategoryDocument> findAllByRestaurantIdAndIsActiveTrue(String restaurantId);
+
+    List<CategoryDocument> findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull(String restaurantId);
 }

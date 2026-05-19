@@ -10,5 +10,7 @@ public interface IBranchRepository extends MongoRepository<BranchDocument, Strin
 
     List<BranchDocument> findAllByRestaurantIdAndIsActiveTrue(String restaurantId);
 
+    List<BranchDocument> findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull(String restaurantId);
+
     Optional<BranchDocument> findByRestaurantIdAndIsMainBranchTrueAndIsActiveTrue(String restaurantId);
 }

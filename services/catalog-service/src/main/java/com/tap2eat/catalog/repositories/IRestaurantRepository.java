@@ -3,6 +3,7 @@ package com.tap2eat.catalog.repositories;
 import com.tap2eat.catalog.models.documents.RestaurantDocument;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface IRestaurantRepository extends MongoRepository<RestaurantDocument, String> {
@@ -10,4 +11,8 @@ public interface IRestaurantRepository extends MongoRepository<RestaurantDocumen
     Optional<RestaurantDocument> findByOwnerAccountId(String ownerAccountId);
 
     Optional<RestaurantDocument> findByOwnerAccountIdAndIsActiveTrue(String ownerAccountId);
+
+    List<RestaurantDocument> findAllByIsActiveTrueAndDeletedAtIsNull();
+
+    Optional<RestaurantDocument> findByIdAndIsActiveTrueAndDeletedAtIsNull(String id);
 }

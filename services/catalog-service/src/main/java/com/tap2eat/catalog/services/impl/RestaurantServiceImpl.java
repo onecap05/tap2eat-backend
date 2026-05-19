@@ -30,7 +30,7 @@ public class RestaurantServiceImpl implements IRestaurantService {
         validateCreateRequest(request);
         catalogAuthorizationService.validateCurrentAccountMatchesOwner(request.ownerAccountId());
 
-        IRestaurantRepository.findByOwnerAccountIdAndIsActiveTrue(request.ownerAccountId())
+        IRestaurantRepository.findByOwnerAccountId(request.ownerAccountId())
                 .ifPresent(existing -> {
                     throw new CatalogValidationException(CatalogErrorCode.RESTAURANT_ALREADY_EXISTS);
                 });
@@ -78,7 +78,7 @@ public class RestaurantServiceImpl implements IRestaurantService {
 
         catalogAuthorizationService.validateCurrentAccountMatchesOwner(ownerAccountId);
 
-        return IRestaurantRepository.findByOwnerAccountIdAndIsActiveTrue(ownerAccountId)
+        return IRestaurantRepository.findByOwnerAccountId(ownerAccountId)
                 .orElseThrow(() -> new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND));
     }
 
@@ -108,7 +108,6 @@ public class RestaurantServiceImpl implements IRestaurantService {
         }
 
         catalogAuthorizationService.validateCurrentAccountMatchesOwner(ownerAccountId);
-        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         RestaurantDocument restaurant = getRestaurantOrThrow(restaurantId);
         validateOwnership(restaurant, ownerAccountId);

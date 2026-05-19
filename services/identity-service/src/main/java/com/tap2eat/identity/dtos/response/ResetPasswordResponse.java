@@ -1,7 +1,11 @@
 package com.tap2eat.identity.dtos.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Response returned after resetting the password")
 public class ResetPasswordResponse {
 
+    @Schema(description = "Operation result message", example = "Password reset successfully.")
     private String message;
 
     public ResetPasswordResponse() {

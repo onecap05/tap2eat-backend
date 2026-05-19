@@ -1,18 +1,30 @@
 package com.tap2eat.identity.dtos.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+@Schema(description = "Request payload for account login")
 public class LoginRequest {
 
-    @NotBlank(message = "Email is required.")
-    @Email(message = "Email format is invalid.")
-    @Size(max = 255, message = "Email must not exceed 255 characters.")
+    @Schema(
+            description = "Registered email address",
+            example = "cliente1@ejemplo.com",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email format is incorrect")
+    @Size(max = 255, message = "Email must not exceed 255 characters")
     private String email;
 
-    @NotBlank(message = "Password is required.")
-    @Size(min = 8, max = 72, message = "Password must be between 8 and 72 characters.")
+    @Schema(
+            description = "Account password",
+            example = "Irene0722?",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, max = 72, message = "Password must be between 8 and 72 characters")
     private String password;
 
     public LoginRequest() {

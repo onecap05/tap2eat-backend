@@ -1,18 +1,28 @@
 package com.tap2eat.identity.dtos.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.UUID;
 
+@Schema(description = "Response returned after successful account registration")
 public class RegisterResponse {
+
+    @Schema(description = "Unique identifier of the created account", example = "550e8400-e29b-41d4-a716-446655440000")
     private UUID id;
+
+    @Schema(description = "Registered email address", example = "cliente1@ejemplo.com")
     private String email;
+
+    @Schema(description = "Assigned account role", example = "CUSTOMER")
     private String role;
+
+    @Schema(description = "Operation result message", example = "Account created successfully. Please verify your email.")
     private String message;
 
-    public RegisterResponse(){
-
+    public RegisterResponse() {
     }
 
-    public RegisterResponse(UUID id, String email, String role, String message){
+    public RegisterResponse(UUID id, String email, String role, String message) {
         this.id = id;
         this.email = email;
         this.role = role;
@@ -51,4 +61,3 @@ public class RegisterResponse {
         this.message = message;
     }
 }
-

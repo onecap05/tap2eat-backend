@@ -8,6 +8,7 @@ import com.tap2eat.catalog.mappers.RestaurantMapper;
 import com.tap2eat.catalog.models.documents.RestaurantDocument;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
 import com.tap2eat.catalog.services.ICatalogAuthorizationService;
+import com.tap2eat.catalog.repositories.IBranchRepository;
 import com.tap2eat.catalog.services.IRestaurantService;
 import com.tap2eat.catalog.validators.RestaurantValidator;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class RestaurantServiceImpl implements IRestaurantService {
 
     private final IRestaurantRepository IRestaurantRepository;
     private final ICatalogAuthorizationService catalogAuthorizationService;
+    private final IBranchRepository branchRepository;
     private final RestaurantMapper restaurantMapper;
 
     @Override
@@ -91,6 +93,7 @@ public class RestaurantServiceImpl implements IRestaurantService {
 
         RestaurantDocument restaurant = getRestaurantOrThrow(restaurantId);
         validateOwnership(restaurant, ownerAccountId);
+        validateRestaurantHasNoActiveBranches(restaurantId);
 
         restaurant.setIsActive(Boolean.FALSE);
         restaurant.setDeletedAt(LocalDateTime.now());
@@ -131,6 +134,12 @@ public class RestaurantServiceImpl implements IRestaurantService {
     private void validateOwnership(RestaurantDocument restaurant, String ownerAccountId) {
         if (restaurant == null || !ownerAccountId.equals(restaurant.getOwnerAccountId())) {
             throw new CatalogValidationException(CatalogErrorCode.UNAUTHORIZED_CATALOG_ACCESS);
+        }
+    }
+
+    private void validateRestaurantHasNoActiveBranches(String restaurantId) {
+        if (!branchRepository.findAllByRestaurantIdAndIsActiveTrue(restaurantId).isEmpty()) {
+            throw new CatalogValidationException(CatalogErrorCode.RESTAURANT_HAS_ACTIVE_BRANCHES);
         }
     }
 

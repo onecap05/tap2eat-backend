@@ -27,7 +27,7 @@ public class AvailabilityEvaluatorImpl implements IAvailabilityEvaluator {
     public boolean isBranchOpen(BranchDocument branch) {
         return branch != null
                 && isVisible(branch.getIsActive(), branch.getDeletedAt() == null)
-                && isAvailableNow(branch.getAvailability(), false);
+                && isAvailableNow(branch.getAvailability(), true);
     }
 
     @Override
@@ -50,7 +50,9 @@ public class AvailabilityEvaluatorImpl implements IAvailabilityEvaluator {
             return emptyScheduleAvailable;
         }
 
-        if (!AvailabilityStatus.AVAILABLE.equals(availability.getStatus())) {
+        AvailabilityStatus status = availability.getStatus();
+
+        if (status != null && !AvailabilityStatus.AVAILABLE.equals(status)) {
             return false;
         }
 
@@ -75,20 +77,30 @@ public class AvailabilityEvaluatorImpl implements IAvailabilityEvaluator {
                         || isOpenFromPreviousDay(day, previousDay, now));
     }
 
-    private boolean isOpenForCurrentDay(DailyAvailability day, DayOfWeek currentDay, LocalTime now) {
+    private boolean isOpenForCurrentDay(
+            DailyAvailability day,
+            DayOfWeek currentDay,
+            LocalTime now
+    ) {
         if (!isEnabledDay(day, currentDay)) {
             return false;
         }
 
-        return safeRanges(day).stream().anyMatch(range -> isInsideCurrentDayRange(range, now));
+        return safeRanges(day).stream()
+                .anyMatch(range -> isInsideCurrentDayRange(range, now));
     }
 
-    private boolean isOpenFromPreviousDay(DailyAvailability day, DayOfWeek previousDay, LocalTime now) {
+    private boolean isOpenFromPreviousDay(
+            DailyAvailability day,
+            DayOfWeek previousDay,
+            LocalTime now
+    ) {
         if (!isEnabledDay(day, previousDay)) {
             return false;
         }
 
-        return safeRanges(day).stream().anyMatch(range -> isInsidePreviousOvernightRange(range, now));
+        return safeRanges(day).stream()
+                .anyMatch(range -> isInsidePreviousOvernightRange(range, now));
     }
 
     private boolean isInsideCurrentDayRange(TimeRange range, LocalTime now) {
@@ -128,7 +140,7 @@ public class AvailabilityEvaluatorImpl implements IAvailabilityEvaluator {
     }
 
     private List<TimeRange> safeRanges(DailyAvailability day) {
-        if (day.getTimeRanges() == null) {
+        if (day == null || day.getTimeRanges() == null) {
             return List.of();
         }
 
@@ -136,7 +148,9 @@ public class AvailabilityEvaluatorImpl implements IAvailabilityEvaluator {
     }
 
     private boolean isValidRange(TimeRange range) {
-        return range != null && range.getStartTime() != null && range.getEndTime() != null;
+        return range != null
+                && range.getStartTime() != null
+                && range.getEndTime() != null;
     }
 
     private boolean isVisible(Boolean active, boolean notDeleted) {

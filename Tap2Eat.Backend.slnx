@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/services/order-service/">
     <Project Path="services/order-service/OrderService.csproj" />
+    <Project Path="services/order-service.Tests/OrderService.Tests.csproj" />
   </Folder>
   <Folder Name="/services/recommendation-service/">
     <Project Path="services/recommendation-service/RecommendationService.csproj" />

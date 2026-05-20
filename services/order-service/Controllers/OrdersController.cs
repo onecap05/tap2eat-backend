@@ -36,13 +36,36 @@ public sealed class OrdersController : ControllerBase
     {
         var order = await _orderService.GetByIdAsync(id, cancellationToken);
 
-        if (order is null)
-        {
-            return NotFound(new
-            {
-                message = "Order not found."
-            });
-        }
+        return Ok(order);
+    }
+
+    [HttpGet("customer/{customerAccountId}")]
+    public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetByCustomerAccountId(
+        string customerAccountId,
+        CancellationToken cancellationToken)
+    {
+        var orders = await _orderService.GetByCustomerAccountIdAsync(customerAccountId, cancellationToken);
+
+        return Ok(orders);
+    }
+
+    [HttpGet("restaurant/{restaurantId}")]
+    public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetByRestaurantId(
+        string restaurantId,
+        CancellationToken cancellationToken)
+    {
+        var orders = await _orderService.GetByRestaurantIdAsync(restaurantId, cancellationToken);
+
+        return Ok(orders);
+    }
+
+    [HttpPatch("{id}/status")]
+    public async Task<ActionResult<OrderResponse>> UpdateStatus(
+        string id,
+        [FromBody] UpdateOrderStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        var order = await _orderService.UpdateStatusAsync(id, request, cancellationToken);
 
         return Ok(order);
     }

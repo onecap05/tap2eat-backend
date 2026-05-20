@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using OrderService.Repositories.Interfaces;
 using OrderService.Services.Implementations;
 using OrderService.Services.Interfaces;
+using OrderService.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,9 +40,15 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.MapControllers();
 
 app.Run();
+
+public partial class Program
+{
+}

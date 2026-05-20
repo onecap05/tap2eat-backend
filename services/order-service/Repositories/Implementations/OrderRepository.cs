@@ -3,6 +3,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using OrderService.Config;
 using OrderService.Domain.Documents;
+using OrderService.Domain.Enums;
 using OrderService.Repositories.Interfaces;
 
 namespace OrderService.Repositories.Implementations;
@@ -39,5 +40,50 @@ public sealed class OrderRepository : IOrderRepository
         return await _orders
             .Find(order => order.Id == id)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderDocument>> FindByCustomerAccountIdAsync(
+        string customerAccountId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _orders
+            .Find(order => order.CustomerAccountId == customerAccountId)
+            .SortByDescending(order => order.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderDocument>> FindByRestaurantIdAsync(
+        string restaurantId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _orders
+            .Find(order => order.RestaurantId == restaurantId)
+            .SortByDescending(order => order.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<OrderDocument?> UpdateStatusAsync(
+        string id,
+        OrderStatus status,
+        DateTime updatedAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ObjectId.TryParse(id, out _))
+        {
+            return null;
+        }
+
+        var update = Builders<OrderDocument>.Update
+            .Set(order => order.Status, status)
+            .Set(order => order.UpdatedAt, updatedAt);
+
+        return await _orders.FindOneAndUpdateAsync(
+            order => order.Id == id,
+            update,
+            new FindOneAndUpdateOptions<OrderDocument>
+            {
+                ReturnDocument = ReturnDocument.After
+            },
+            cancellationToken);
     }
 }

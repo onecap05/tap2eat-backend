@@ -1,10 +1,9 @@
 package com.tap2eat.catalog.controllers;
 
-import com.tap2eat.catalog.dtos.response.branch.BranchResponse;
-import com.tap2eat.catalog.dtos.response.category.CategoryResponse;
-import com.tap2eat.catalog.dtos.response.product.ProductResponse;
-import com.tap2eat.catalog.dtos.response.restaurant.RestaurantResponse;
-import com.tap2eat.catalog.mappers.CatalogResponseMapper;
+import com.tap2eat.catalog.dtos.response.customer.CustomerBranchResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerCategoryResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerProductResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerRestaurantResponse;
 import com.tap2eat.catalog.services.ICustomerCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,35 +19,34 @@ import java.util.List;
 public class CustomerCatalogController {
 
     private final ICustomerCatalogService customerCatalogService;
-    private final CatalogResponseMapper catalogResponseMapper;
 
     @GetMapping("/restaurants")
-    public List<RestaurantResponse> getRestaurants() {
-        return catalogResponseMapper.toRestaurantResponses(customerCatalogService.getActiveRestaurants());
+    public List<CustomerRestaurantResponse> getRestaurants() {
+        return customerCatalogService.getActiveRestaurants();
     }
 
     @GetMapping("/restaurants/{restaurantId}")
-    public RestaurantResponse getRestaurant(@PathVariable String restaurantId) {
-        return catalogResponseMapper.toRestaurantResponse(customerCatalogService.getActiveRestaurantById(restaurantId));
+    public CustomerRestaurantResponse getRestaurant(@PathVariable String restaurantId) {
+        return customerCatalogService.getActiveRestaurantById(restaurantId);
     }
 
     @GetMapping("/restaurants/{restaurantId}/branches")
-    public List<BranchResponse> getRestaurantBranches(@PathVariable String restaurantId) {
-        return catalogResponseMapper.toBranchResponses(customerCatalogService.getActiveBranchesByRestaurant(restaurantId));
+    public List<CustomerBranchResponse> getRestaurantBranches(@PathVariable String restaurantId) {
+        return customerCatalogService.getActiveBranchesByRestaurant(restaurantId);
     }
 
     @GetMapping("/restaurants/{restaurantId}/categories")
-    public List<CategoryResponse> getRestaurantCategories(@PathVariable String restaurantId) {
-        return catalogResponseMapper.toCategoryResponses(customerCatalogService.getActiveCategoriesByRestaurant(restaurantId));
+    public List<CustomerCategoryResponse> getRestaurantCategories(@PathVariable String restaurantId) {
+        return customerCatalogService.getAvailableCategoriesByRestaurant(restaurantId);
     }
 
     @GetMapping("/restaurants/{restaurantId}/products")
-    public List<ProductResponse> getRestaurantProducts(@PathVariable String restaurantId) {
-        return catalogResponseMapper.toProductResponses(customerCatalogService.getAvailableProductsByRestaurant(restaurantId));
+    public List<CustomerProductResponse> getRestaurantProducts(@PathVariable String restaurantId) {
+        return customerCatalogService.getAvailableProductsByRestaurant(restaurantId);
     }
 
     @GetMapping("/products/{productId}")
-    public ProductResponse getProduct(@PathVariable String productId) {
-        return catalogResponseMapper.toProductResponse(customerCatalogService.getAvailableProductById(productId));
+    public CustomerProductResponse getProduct(@PathVariable String productId) {
+        return customerCatalogService.getAvailableProductById(productId);
     }
 }

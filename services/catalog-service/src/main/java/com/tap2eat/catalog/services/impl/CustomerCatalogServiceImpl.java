@@ -2,18 +2,22 @@ package com.tap2eat.catalog.services.impl;
 
 import com.tap2eat.catalog.exceptions.CatalogErrorCode;
 import com.tap2eat.catalog.exceptions.CatalogValidationException;
+import com.tap2eat.catalog.dtos.response.customer.CustomerBranchResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerCategoryResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerProductResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerRestaurantResponse;
+import com.tap2eat.catalog.mappers.CustomerCatalogResponseMapper;
 import com.tap2eat.catalog.models.documents.BranchDocument;
 import com.tap2eat.catalog.models.documents.CategoryDocument;
 import com.tap2eat.catalog.models.documents.ProductDocument;
 import com.tap2eat.catalog.models.documents.RestaurantDocument;
-import com.tap2eat.catalog.models.embedded.AvailabilityConfig;
 import com.tap2eat.catalog.models.embedded.ModifierGroup;
 import com.tap2eat.catalog.models.embedded.ModifierOption;
-import com.tap2eat.catalog.models.enums.AvailabilityStatus;
 import com.tap2eat.catalog.repositories.IBranchRepository;
 import com.tap2eat.catalog.repositories.ICategoryRepository;
 import com.tap2eat.catalog.repositories.IProductRepository;
 import com.tap2eat.catalog.repositories.IRestaurantRepository;
+import com.tap2eat.catalog.services.IAvailabilityEvaluator;
 import com.tap2eat.catalog.services.ICustomerCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,87 +35,128 @@ public class CustomerCatalogServiceImpl implements ICustomerCatalogService {
     private final IBranchRepository branchRepository;
     private final ICategoryRepository categoryRepository;
     private final IProductRepository productRepository;
+    private final IAvailabilityEvaluator availabilityEvaluator;
+    private final CustomerCatalogResponseMapper customerCatalogResponseMapper;
 
     @Override
-    public List<RestaurantDocument> getActiveRestaurants() {
-        return restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull();
+    public List<CustomerRestaurantResponse> getActiveRestaurants() {
+        return restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull().stream()
+                .map(restaurant -> customerCatalogResponseMapper.toRestaurantResponse(
+                        restaurant,
+                        hasOpenBranch(restaurant.getId())
+                ))
+                .toList();
     }
 
     @Override
-    public RestaurantDocument getActiveRestaurantById(String restaurantId) {
+    public CustomerRestaurantResponse getActiveRestaurantById(String restaurantId) {
+        RestaurantDocument restaurant = getActiveRestaurantOrThrow(restaurantId);
+
+        return customerCatalogResponseMapper.toRestaurantResponse(restaurant, hasOpenBranch(restaurantId));
+    }
+
+    @Override
+    public List<CustomerBranchResponse> getActiveBranchesByRestaurant(String restaurantId) {
+        getActiveRestaurantOrThrow(restaurantId);
+
+        return getVisibleBranches(restaurantId).stream()
+                .map(branch -> customerCatalogResponseMapper.toBranchResponse(
+                        branch,
+                        availabilityEvaluator.isBranchOpen(branch)
+                ))
+                .toList();
+    }
+
+    @Override
+    public List<CustomerCategoryResponse> getAvailableCategoriesByRestaurant(String restaurantId) {
+        getActiveRestaurantOrThrow(restaurantId);
+
+        if (!hasOpenBranch(restaurantId)) {
+            return List.of();
+        }
+
+        return getAvailableCategories(restaurantId).stream()
+                .sorted(Comparator.comparing(
+                        category -> category.getDisplayOrder() == null ? Integer.MAX_VALUE : category.getDisplayOrder()
+                ))
+                .map(category -> customerCatalogResponseMapper.toCategoryResponse(category, true))
+                .toList();
+    }
+
+    @Override
+    public List<CustomerProductResponse> getAvailableProductsByRestaurant(String restaurantId) {
+        getActiveRestaurantOrThrow(restaurantId);
+
+        if (!hasOpenBranch(restaurantId)) {
+            return List.of();
+        }
+
+        Set<String> availableCategoryIds = getAvailableCategoryIds(restaurantId);
+
+        return productRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull(restaurantId).stream()
+                .filter(product -> availableCategoryIds.contains(product.getCategoryId()))
+                .filter(availabilityEvaluator::isProductAvailable)
+                .map(this::filterInactiveModifiers)
+                .sorted(Comparator.comparing(
+                        product -> product.getDisplayOrder() == null ? Integer.MAX_VALUE : product.getDisplayOrder()
+                ))
+                .map(product -> customerCatalogResponseMapper.toProductResponse(product, true))
+                .toList();
+    }
+
+    @Override
+    public CustomerProductResponse getAvailableProductById(String productId) {
+        validateId(productId);
+
+        ProductDocument product = productRepository.findByIdAndIsActiveTrueAndDeletedAtIsNull(productId)
+                .filter(availabilityEvaluator::isProductAvailable)
+                .map(this::filterInactiveModifiers)
+                .orElseThrow(() -> new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND));
+
+        getActiveRestaurantOrThrow(product.getRestaurantId());
+        validateRestaurantIsOpen(product.getRestaurantId());
+        validateProductCategoryIsAvailable(product);
+
+        return customerCatalogResponseMapper.toProductResponse(product, true);
+    }
+
+    private RestaurantDocument getActiveRestaurantOrThrow(String restaurantId) {
         validateId(restaurantId);
 
         return restaurantRepository.findByIdAndIsActiveTrueAndDeletedAtIsNull(restaurantId)
                 .orElseThrow(() -> new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND));
     }
 
-    @Override
-    public List<BranchDocument> getActiveBranchesByRestaurant(String restaurantId) {
-        getActiveRestaurantById(restaurantId);
+    private boolean hasOpenBranch(String restaurantId) {
+        return getVisibleBranches(restaurantId).stream().anyMatch(availabilityEvaluator::isBranchOpen);
+    }
 
+    private List<BranchDocument> getVisibleBranches(String restaurantId) {
         return branchRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull(restaurantId);
     }
 
-    @Override
-    public List<CategoryDocument> getActiveCategoriesByRestaurant(String restaurantId) {
-        getActiveRestaurantById(restaurantId);
-
+    private List<CategoryDocument> getAvailableCategories(String restaurantId) {
         return categoryRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull(restaurantId).stream()
-                .sorted(Comparator.comparing(
-                        category -> category.getDisplayOrder() == null ? Integer.MAX_VALUE : category.getDisplayOrder()
-                ))
+                .filter(availabilityEvaluator::isCategoryAvailable)
                 .toList();
     }
 
-    @Override
-    public List<ProductDocument> getAvailableProductsByRestaurant(String restaurantId) {
-        getActiveRestaurantById(restaurantId);
-        Set<String> activeCategoryIds = getActiveCategoryIds(restaurantId);
-
-        return productRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull(restaurantId).stream()
-                .filter(product -> activeCategoryIds.contains(product.getCategoryId()))
-                .filter(this::isAvailableProduct)
-                .sorted(Comparator.comparing(
-                        product -> product.getDisplayOrder() == null ? Integer.MAX_VALUE : product.getDisplayOrder()
-                ))
-                .toList();
-    }
-
-    @Override
-    public ProductDocument getAvailableProductById(String productId) {
-        validateId(productId);
-
-        ProductDocument product = productRepository.findByIdAndIsActiveTrueAndDeletedAtIsNull(productId)
-                .filter(this::isAvailableProduct)
-                .map(this::filterInactiveModifiers)
-                .orElseThrow(() -> new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND));
-
-        getActiveRestaurantById(product.getRestaurantId());
-        validateProductCategoryIsActive(product);
-
-        return product;
-    }
-
-    private Set<String> getActiveCategoryIds(String restaurantId) {
-        return categoryRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull(restaurantId).stream()
+    private Set<String> getAvailableCategoryIds(String restaurantId) {
+        return getAvailableCategories(restaurantId).stream()
                 .map(CategoryDocument::getId)
                 .collect(Collectors.toSet());
     }
 
-    private void validateProductCategoryIsActive(ProductDocument product) {
-        if (!getActiveCategoryIds(product.getRestaurantId()).contains(product.getCategoryId())) {
+    private void validateProductCategoryIsAvailable(ProductDocument product) {
+        if (!getAvailableCategoryIds(product.getRestaurantId()).contains(product.getCategoryId())) {
             throw new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 
-    private boolean isAvailableProduct(ProductDocument product) {
-        if (product == null || Boolean.FALSE.equals(product.getIsActive()) || product.getDeletedAt() != null) {
-            return false;
+    private void validateRestaurantIsOpen(String restaurantId) {
+        if (!hasOpenBranch(restaurantId)) {
+            throw new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND);
         }
-
-        AvailabilityConfig availability = product.getAvailability();
-
-        return availability == null || AvailabilityStatus.AVAILABLE.equals(availability.getStatus());
     }
 
     private ProductDocument filterInactiveModifiers(ProductDocument product) {

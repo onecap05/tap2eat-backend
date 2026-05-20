@@ -1,23 +1,23 @@
 package com.tap2eat.catalog.services;
 
-import com.tap2eat.catalog.models.documents.BranchDocument;
-import com.tap2eat.catalog.models.documents.CategoryDocument;
-import com.tap2eat.catalog.models.documents.ProductDocument;
-import com.tap2eat.catalog.models.documents.RestaurantDocument;
+import com.tap2eat.catalog.dtos.response.customer.CustomerBranchResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerCategoryResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerProductResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerRestaurantResponse;
 
 import java.util.List;
 
 public interface ICustomerCatalogService {
 
-    List<RestaurantDocument> getActiveRestaurants();
+    List<CustomerRestaurantResponse> getActiveRestaurants();
 
-    RestaurantDocument getActiveRestaurantById(String restaurantId);
+    CustomerRestaurantResponse getActiveRestaurantById(String restaurantId);
 
-    List<BranchDocument> getActiveBranchesByRestaurant(String restaurantId);
+    List<CustomerBranchResponse> getActiveBranchesByRestaurant(String restaurantId);
 
-    List<CategoryDocument> getActiveCategoriesByRestaurant(String restaurantId);
+    List<CustomerCategoryResponse> getAvailableCategoriesByRestaurant(String restaurantId);
 
-    List<ProductDocument> getAvailableProductsByRestaurant(String restaurantId);
+    List<CustomerProductResponse> getAvailableProductsByRestaurant(String restaurantId);
 
-    ProductDocument getAvailableProductById(String productId);
+    CustomerProductResponse getAvailableProductById(String productId);
 }

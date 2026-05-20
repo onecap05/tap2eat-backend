@@ -1,15 +1,15 @@
-package com.tap2eat.gateway.config;
+package com.tap2eat.catalog.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.config.http.SessionCreationPolicy;
 
 import java.util.Collection;
 
@@ -18,29 +18,12 @@ public class SecurityConfig {
 
     private static final String RESTAURANT_OWNER_ROLE = "RESTAURANT_OWNER";
 
-    private static final String[] PUBLIC_AUTH_ENDPOINTS = {
-            "/api/auth/register",
-            "/api/auth/login",
-            "/api/auth/logout",
-            "/api/auth/refresh",
-            "/api/auth/verify-email",
-            "/api/auth/forgot-password",
-            "/api/auth/reset-password",
-            "/api/auth/resend-verification-code"
-    };
-
     private static final String[] PUBLIC_SYSTEM_ENDPOINTS = {
             "/actuator/health",
-            "/actuator/info"
-    };
-
-    private static final String[] OWNER_CATALOG_ENDPOINTS = {
-            "/api/restaurants/**",
-            "/api/branches/**",
-            "/api/categories/**",
-            "/api/products/**",
-            "/api/uploads/**",
-            "/api/locations/**"
+            "/actuator/info",
+            "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html"
     };
 
     @Bean
@@ -56,10 +39,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(PUBLIC_AUTH_ENDPOINTS).permitAll()
                         .requestMatchers(PUBLIC_SYSTEM_ENDPOINTS).permitAll()
-                        .requestMatchers(OWNER_CATALOG_ENDPOINTS).hasRole(RESTAURANT_OWNER_ROLE)
-                        .anyRequest().authenticated()
+                        .anyRequest().hasRole(RESTAURANT_OWNER_ROLE)
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter))

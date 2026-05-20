@@ -2,6 +2,7 @@ package com.tap2eat.catalog.services.impl;
 
 import com.tap2eat.catalog.dtos.request.category.CreateCategoryRequest;
 import com.tap2eat.catalog.dtos.request.category.UpdateCategoryRequest;
+import com.tap2eat.catalog.services.ICatalogAuthorizationService;
 import com.tap2eat.catalog.exceptions.CatalogErrorCode;
 import com.tap2eat.catalog.exceptions.CatalogValidationException;
 import com.tap2eat.catalog.mappers.CategoryMapper;
@@ -23,6 +24,7 @@ public class CategoryServiceImpl implements ICategoryService {
 
     private final ICategoryRepository ICategoryRepository;
     private final IRestaurantRepository IRestaurantRepository;
+    private final ICatalogAuthorizationService catalogAuthorizationService;
     private final CategoryMapper categoryMapper;
     private final IProductRepository IProductRepository;
 
@@ -31,6 +33,7 @@ public class CategoryServiceImpl implements ICategoryService {
     public CategoryDocument createCategory(CreateCategoryRequest request) {
         validateCreateRequest(request);
         validateRestaurantExists(request.restaurantId());
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(request.restaurantId());
 
         CategoryDocument category = categoryMapper.toDocument(request);
         CategoryValidator.validate(category);
@@ -43,6 +46,8 @@ public class CategoryServiceImpl implements ICategoryService {
         if (isBlank(restaurantId) || isBlank(categoryId) || request == null) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_CATEGORY_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         CategoryDocument category = getCategoryOrThrow(categoryId);
         validateCategoryOwnership(category, restaurantId);
@@ -59,7 +64,10 @@ public class CategoryServiceImpl implements ICategoryService {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_CATEGORY_DATA);
         }
 
-        return getCategoryOrThrow(categoryId);
+        CategoryDocument category = getCategoryOrThrow(categoryId);
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(category.getRestaurantId());
+
+        return category;
     }
 
     @Override
@@ -67,6 +75,8 @@ public class CategoryServiceImpl implements ICategoryService {
         if (isBlank(restaurantId)) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_CATEGORY_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         validateRestaurantExists(restaurantId);
         return ICategoryRepository.findAllByRestaurantIdAndIsActiveTrue(restaurantId);
@@ -77,6 +87,8 @@ public class CategoryServiceImpl implements ICategoryService {
         if (isBlank(restaurantId) || isBlank(categoryId)) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_CATEGORY_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         CategoryDocument category = getCategoryOrThrow(categoryId);
         validateCategoryOwnership(category, restaurantId);
@@ -92,6 +104,8 @@ public class CategoryServiceImpl implements ICategoryService {
         if (isBlank(restaurantId) || isBlank(categoryId)) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_CATEGORY_DATA);
         }
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         CategoryDocument category = getCategoryOrThrow(categoryId);
         validateCategoryOwnership(category, restaurantId);
@@ -109,6 +123,8 @@ public class CategoryServiceImpl implements ICategoryService {
         CategoryDocument category = getCategoryOrThrow(categoryId);
         validateCategoryOwnership(category, restaurantId);
         validateCategoryHasNoActiveProducts(categoryId);
+
+        catalogAuthorizationService.validateCurrentAccountOwnsRestaurant(restaurantId);
 
         category.setIsActive(Boolean.FALSE);
         category.setDeletedAt(LocalDateTime.now());

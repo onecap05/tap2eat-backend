@@ -3,6 +3,10 @@ package com.tap2eat.catalog.validators;
 import com.tap2eat.catalog.exceptions.CatalogErrorCode;
 import com.tap2eat.catalog.exceptions.CatalogValidationException;
 import com.tap2eat.catalog.models.documents.BranchDocument;
+import com.tap2eat.catalog.models.embedded.AvailabilityConfig;
+import com.tap2eat.catalog.models.embedded.DailyAvailability;
+
+import java.util.List;
 
 public final class BranchValidator {
 
@@ -19,6 +23,23 @@ public final class BranchValidator {
         validatePhoneNumber(branch.getPhoneNumber());
 
         AvailabilityValidator.validate(branch.getAvailability());
+        validateRequiredSchedule(branch.getAvailability());
+    }
+
+    private static void validateRequiredSchedule(AvailabilityConfig availability) {
+        if (availability == null
+                || availability.getWeeklySchedule() == null
+                || availability.getWeeklySchedule().isEmpty()) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_BRANCH_DATA);
+        }
+
+        List<DailyAvailability> enabledDays = availability.getWeeklySchedule().stream()
+                .filter(day -> Boolean.TRUE.equals(day.getEnabled()))
+                .toList();
+
+        if (enabledDays.isEmpty()) {
+            throw new CatalogValidationException(CatalogErrorCode.INVALID_BRANCH_DATA);
+        }
     }
 
     private static void validateRequiredFields(BranchDocument branch) {

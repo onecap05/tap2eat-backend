@@ -25,4 +25,15 @@ public class ImageUploadController {
         ImageMetadataResponse response = imageUploadService.uploadProductImage(file);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping(
+            value = "/restaurants/logos",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public ResponseEntity<ImageMetadataResponse> uploadRestaurantLogo(
+            @RequestPart("file") MultipartFile file
+    ) {
+        ImageMetadataResponse response = imageUploadService.uploadRestaurantLogo(file);
+        return ResponseEntity.ok(response);
+    }
 }

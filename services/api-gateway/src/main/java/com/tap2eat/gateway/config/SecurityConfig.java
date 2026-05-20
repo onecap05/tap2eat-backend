@@ -34,6 +34,10 @@ public class SecurityConfig {
             "/actuator/info"
     };
 
+    private static final String[] PUBLIC_CUSTOMER_ENDPOINTS = {
+            "/api/customer/**"
+    };
+
     private static final String[] OWNER_CATALOG_ENDPOINTS = {
             "/api/restaurants/**",
             "/api/branches/**",
@@ -58,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_AUTH_ENDPOINTS).permitAll()
                         .requestMatchers(PUBLIC_SYSTEM_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, PUBLIC_CUSTOMER_ENDPOINTS).permitAll()
                         .requestMatchers(OWNER_CATALOG_ENDPOINTS).hasRole(RESTAURANT_OWNER_ROLE)
                         .anyRequest().authenticated()
                 )

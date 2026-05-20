@@ -28,3 +28,5 @@ Thumbs.db
 secrets/google/credentials.json
 secrets/google/tokens/
 secrets/
+
+AGENTS.md

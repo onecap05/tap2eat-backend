@@ -26,6 +26,10 @@ public class SecurityConfig {
             "/swagger-ui.html"
     };
 
+    private static final String[] PUBLIC_CUSTOMER_ENDPOINTS = {
+            "/api/customer/**"
+    };
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
@@ -40,6 +44,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_SYSTEM_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, PUBLIC_CUSTOMER_ENDPOINTS).permitAll()
                         .anyRequest().hasRole(RESTAURANT_OWNER_ROLE)
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

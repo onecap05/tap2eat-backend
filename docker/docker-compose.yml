@@ -10,6 +10,9 @@ services:
       - identity-service
       - catalog-service
       - notification-service
+      - order-service
+      - finance-service
+      - recommendation-service
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -84,6 +87,87 @@ services:
     networks:
       - tap2eat-network
 
+  order-service:
+    build:
+      context: ..
+      dockerfile: services/order-service/Dockerfile
+    container_name: tap2eat-order-service
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8085
+      MongoDb__ConnectionString: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/tap2eat_orders?authSource=admin"
+      MongoDb__DatabaseName: tap2eat_orders
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
+      RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+    depends_on:
+      - mongodb
+      - rabbitmq
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+    networks:
+      - tap2eat-network
+
+  finance-service:
+    build:
+      context: ..
+      dockerfile: services/finance-service/Dockerfile
+    container_name: tap2eat-finance-service
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8083
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tap2eat_finance;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
+      RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+    depends_on:
+      - postgres
+      - rabbitmq
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+    networks:
+      - tap2eat-network
+
+  recommendation-service:
+    build:
+      context: ..
+      dockerfile: services/recommendation-service/Dockerfile
+    container_name: tap2eat-recommendation-service
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8086
+      Neo4j__Uri: "bolt://neo4j:7687"
+      Neo4j__Username: ${NEO4J_USER}
+      Neo4j__Password: ${NEO4J_PASSWORD}
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
+      RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+    depends_on:
+      - neo4j
+      - rabbitmq
+    ports:
+      - "8086:8086"
+    restart: unless-stopped
+    networks:
+      - tap2eat-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: tap2eat-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-tap2eat}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - tap2eat-network
+
   postgres:
     image: postgres:15
     container_name: tap2eat-postgres
@@ -132,6 +216,7 @@ volumes:
   postgres_data:
   mongo_data:
   neo4j_data:
+  rabbitmq_data:
 
 networks:
   tap2eat-network:

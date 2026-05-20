@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/services/" />
+  <Folder Name="/services/finance-service/">
+    <Project Path="services/finance-service/FinanceService.csproj" />
+  </Folder>
+  <Folder Name="/services/order-service/">
+    <Project Path="services/order-service/OrderService.csproj" />
+  </Folder>
+  <Folder Name="/services/recommendation-service/">
+    <Project Path="services/recommendation-service/RecommendationService.csproj" />
+  </Folder>
+</Solution>

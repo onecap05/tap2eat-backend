@@ -24,6 +24,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify proto submodule
+        run: |
+          test -d shared/protos
+          ls -la shared
+          ls -la shared/protos
+          find shared/protos -maxdepth 2 -type f
+
+      - name: Verify identity-service files
+        run: |
+          test -f services/identity-service/pom.xml
+          test -f services/identity-service/Dockerfile
+          test -f postman/collections/tap2eat-identity.postman_collection.json
+          test -f postman/environments/tap2eat-ci.postman_environment.json
 
       - name: Create JWT keys for CI
         shell: bash

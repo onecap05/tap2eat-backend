@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: tap2eat-auth-test-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  identity-service:
+    build:
+      context: ..
+      dockerfile: services/identity-service/Dockerfile
+    container_name: tap2eat-auth-test-identity-service
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
+      AUTH_TEST_SEED_ENABLED: "true"
+      AUTH_TEST_SEED_EMAIL: ${POSTMAN_TEST_EMAIL}
+      AUTH_TEST_SEED_PASSWORD: ${POSTMAN_TEST_PASSWORD}
+      AUTH_TEST_SEED_ROLE: CUSTOMER
+      AUTH_TEST_SEED_FIRST_NAME: CI
+      AUTH_TEST_SEED_LAST_NAME: User
+      AUTH_TEST_SEED_PHONE: "2280000000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8081"

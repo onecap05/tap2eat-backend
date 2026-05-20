@@ -1,0 +1,109 @@
+name: Postman Auth Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  postman-auth-tests:
+    runs-on: ubuntu-latest
+
+    env:
+      POSTMAN_BASE_IDENTITY_URL: ${{ vars.POSTMAN_BASE_IDENTITY_URL }}
+      POSTMAN_NEW_PASSWORD: ${{ vars.POSTMAN_NEW_PASSWORD }}
+      POSTMAN_TEST_EMAIL: ${{ secrets.POSTMAN_TEST_EMAIL }}
+      POSTMAN_TEST_PASSWORD: ${{ secrets.POSTMAN_TEST_PASSWORD }}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tap2eat_identity_test
+      JWT_EXPIRATION: 120000
+      JWT_REFRESH_EXPIRATION: 604800000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify proto submodule
+        run: |
+          test -d shared/protos
+          ls -la shared
+          ls -la shared/protos
+          find shared/protos -maxdepth 2 -type f
+
+      - name: Verify identity-service files
+        run: |
+          test -f services/identity-service/pom.xml
+          test -f services/identity-service/Dockerfile
+          test -f postman/collections/tap2eat-identity.postman_collection.json
+          test -f postman/environments/tap2eat-ci.postman_environment.json
+
+      - name: Create JWT keys for CI
+        shell: bash
+        run: |
+          mkdir -p services/identity-service/src/main/resources/keys
+          openssl genrsa -out services/identity-service/src/main/resources/keys/private_key.pem 2048
+          openssl rsa -in services/identity-service/src/main/resources/keys/private_key.pem -pubout -out services/identity-service/src/main/resources/keys/public_key.pem
+
+      - name: Start auth test environment
+        run: docker compose -f docker/docker-compose.auth-test.yml up -d --build
+
+      - name: Wait for identity-service
+        shell: bash
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8081/v3/api-docs > /dev/null; then
+              echo "identity-service is up"
+              exit 0
+            fi
+            echo "Waiting for identity-service..."
+            sleep 10
+          done
+          echo "identity-service did not start in time"
+          docker compose -f docker/docker-compose.auth-test.yml logs
+          exit 1
+
+      - name: Inject Postman CI environment values
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("postman/environments/tap2eat-ci.postman_environment.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+
+          replacements = {
+              "baseUrl": os.environ["POSTMAN_BASE_IDENTITY_URL"],
+              "testEmail": os.environ["POSTMAN_TEST_EMAIL"],
+              "testPassword": os.environ["POSTMAN_TEST_PASSWORD"],
+              "newPassword": os.environ["POSTMAN_NEW_PASSWORD"]
+          }
+
+          for item in data["values"]:
+              key = item["key"]
+              if key in replacements:
+                  item["value"] = replacements[key]
+
+          path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+          PY
+
+      - name: Run Postman collection
+        uses: postmanlabs/postman-cli-action@v1
+        with:
+          command: >
+            collection run postman/collections/tap2eat-identity.postman_collection.json
+            --environment postman/environments/tap2eat-ci.postman_environment.json
+            -r cli,json,junit
+
+      - name: Show docker logs on failure
+        if: failure()
+        run: docker compose -f docker/docker-compose.auth-test.yml logs
+
+      - name: Stop auth test environment
+        if: always()
+        run: docker compose -f docker/docker-compose.auth-test.yml down -v

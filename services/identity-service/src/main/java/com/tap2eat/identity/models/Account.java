@@ -13,6 +13,9 @@ public class Account {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
+    @OneToOne(mappedBy = "account", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private AccountProfile profile;
+
     @Column(name = "email", nullable = false, unique = true, length = 255)
     private String email;
 
@@ -88,5 +91,17 @@ public class Account {
 
     public void setEmailVerified(Boolean emailVerified) {
         this.emailVerified = emailVerified;
+    }
+
+    public AccountProfile getProfile() {
+        return profile;
+    }
+
+    public void setProfile(AccountProfile profile) {
+        this.profile = profile;
+
+        if (profile != null && profile.getAccount() != this) {
+            profile.setAccount(this);
+        }
     }
 }

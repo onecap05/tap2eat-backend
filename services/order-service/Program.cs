@@ -7,11 +7,14 @@ using OrderService.Repositories.Interfaces;
 using OrderService.Services.Implementations;
 using OrderService.Services.Interfaces;
 using OrderService.Middleware;
+using OrderService.Integrations.Catalog;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<MongoDbSettings>(
     builder.Configuration.GetSection(MongoDbSettings.SectionName));
+builder.Services.Configure<CatalogServiceSettings>(
+    builder.Configuration.GetSection(CatalogServiceSettings.SectionName));
 
 builder.Services.AddSingleton<IMongoClient>(serviceProvider =>
 {
@@ -29,6 +32,16 @@ builder.Services.AddSingleton<IMongoClient>(serviceProvider =>
 
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
+builder.Services.AddHttpClient<ICatalogClient, CatalogClient>((serviceProvider, httpClient) =>
+{
+    var settings = serviceProvider
+        .GetRequiredService<Microsoft.Extensions.Options.IOptions<CatalogServiceSettings>>()
+        .Value;
+
+    httpClient.BaseAddress = new Uri(settings.BaseUrl);
+    httpClient.Timeout = TimeSpan.FromSeconds(5);
+    httpClient.DefaultRequestHeaders.Add("X-Internal-Service-Token", settings.InternalServiceToken);
+});
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

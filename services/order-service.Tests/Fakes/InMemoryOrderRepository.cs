@@ -13,6 +13,8 @@ internal sealed class InMemoryOrderRepository : IOrderRepository
         _orders.AddRange(orders);
     }
 
+    public IReadOnlyList<OrderDocument> Orders => _orders;
+
     public Task<OrderDocument> CreateAsync(OrderDocument order, CancellationToken cancellationToken = default)
     {
         order.Id ??= MongoDB.Bson.ObjectId.GenerateNewId().ToString();

@@ -58,6 +58,7 @@ services:
 
       DEFAULT_PRODUCT_IMAGE_URL: ${DEFAULT_PRODUCT_IMAGE_URL}
       DEFAULT_PRODUCT_IMAGE_OBJECT_KEY: ${DEFAULT_PRODUCT_IMAGE_OBJECT_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-tap2eat-internal-dev-token}
     depends_on:
       - mongodb
     ports:
@@ -96,12 +97,15 @@ services:
       ASPNETCORE_HTTP_PORTS: 8085
       MongoDb__ConnectionString: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/tap2eat_orders?authSource=admin"
       MongoDb__DatabaseName: tap2eat_orders
+      CatalogService__BaseUrl: "http://catalog-service:8082"
+      CatalogService__InternalServiceToken: ${INTERNAL_SERVICE_TOKEN:-tap2eat-internal-dev-token}
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: 5672
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
     depends_on:
       - mongodb
+      - catalog-service
       - rabbitmq
     ports:
       - "8085:8085"

@@ -2,6 +2,7 @@ using OrderService.Dtos.Requests;
 using OrderService.Dtos.Responses;
 using OrderService.Domain.Enums;
 using OrderService.Exceptions;
+using OrderService.Integrations.Catalog;
 using OrderService.Mapping;
 using OrderService.Repositories.Interfaces;
 using OrderService.Services.Interfaces;
@@ -11,17 +12,20 @@ namespace OrderService.Services.Implementations;
 public sealed class OrderServiceImpl : IOrderService
 {
     private readonly IOrderRepository _orderRepository;
+    private readonly ICatalogClient _catalogClient;
 
-    public OrderServiceImpl(IOrderRepository orderRepository)
+    public OrderServiceImpl(IOrderRepository orderRepository, ICatalogClient catalogClient)
     {
         _orderRepository = orderRepository;
+        _catalogClient = catalogClient;
     }
 
     public async Task<OrderResponse> CreateAsync(
         CreateOrderRequest request,
         CancellationToken cancellationToken = default)
     {
-        var document = OrderMapper.ToDocument(request);
+        var validatedOrder = await _catalogClient.ValidateOrderAsync(request, cancellationToken);
+        var document = OrderMapper.ToDocument(request, validatedOrder);
         var createdOrder = await _orderRepository.CreateAsync(document, cancellationToken);
 
         return OrderMapper.ToResponse(createdOrder);

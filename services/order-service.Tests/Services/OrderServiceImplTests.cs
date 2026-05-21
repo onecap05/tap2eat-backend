@@ -14,11 +14,13 @@ public sealed class OrderServiceImplTests
     public async Task CreateAsync_ShouldCreateOrder()
     {
         var repository = new InMemoryOrderRepository();
-        var service = new OrderServiceImpl(repository);
+        var catalogClient = new FakeCatalogClient(OrderTestData.ValidatedOrderResponse(unitPrice: 50));
+        var service = new OrderServiceImpl(repository, catalogClient);
         var request = OrderTestData.CreateOrderRequest();
 
         var response = await service.CreateAsync(request);
 
+        catalogClient.Calls.Should().Be(1);
         response.Id.Should().NotBeNullOrWhiteSpace();
         response.CustomerAccountId.Should().Be(request.CustomerAccountId);
         response.Status.Should().Be(OrderStatus.Created);
@@ -26,10 +28,77 @@ public sealed class OrderServiceImplTests
     }
 
     [Fact]
+    public async Task CreateAsync_ShouldUseCatalogPriceInsteadOfClientPrice()
+    {
+        var repository = new InMemoryOrderRepository();
+        var service = new OrderServiceImpl(
+            repository,
+            new FakeCatalogClient(OrderTestData.ValidatedOrderResponse(unitPrice: 75)));
+        var request = OrderTestData.CreateOrderRequest();
+        request.Items[0].UnitPriceSnapshot = 1;
+
+        var response = await service.CreateAsync(request);
+
+        response.Items[0].UnitPriceSnapshot.Should().Be(75);
+        response.Total.Should().Be(150);
+        repository.Orders.Should().ContainSingle(order => order.Total == 150);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ShouldUseCatalogProductNameAndModifiers()
+    {
+        var repository = new InMemoryOrderRepository();
+        var service = new OrderServiceImpl(
+            repository,
+            new FakeCatalogClient(OrderTestData.ValidatedOrderResponse(
+                productName: "Catalog Burger",
+                unitPrice: 80,
+                modifierPrice: 15)));
+        var request = OrderTestData.CreateOrderRequestWithModifier();
+        request.Items[0].ProductNameSnapshot = "Client Burger";
+        request.Items[0].SelectedModifiers[0].ModifierOptionName = "Client Cheese";
+
+        var response = await service.CreateAsync(request);
+
+        response.Items[0].ProductNameSnapshot.Should().Be("Catalog Burger");
+        response.Items[0].SelectedModifiers.Should().ContainSingle();
+        response.Items[0].SelectedModifiers[0].ModifierOptionName.Should().Be("Catalog Cheese");
+        response.Total.Should().Be(190);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenCatalogRejectsOrder_ShouldNotSaveOrder()
+    {
+        var repository = new InMemoryOrderRepository();
+        var service = new OrderServiceImpl(
+            repository,
+            new FakeCatalogClient((_, _) => throw new CatalogValidationException("Invalid product.")));
+
+        var act = async () => await service.CreateAsync(OrderTestData.CreateOrderRequest());
+
+        await act.Should().ThrowAsync<CatalogValidationException>();
+        repository.Orders.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenCatalogIsUnavailable_ShouldThrowControlledError()
+    {
+        var repository = new InMemoryOrderRepository();
+        var service = new OrderServiceImpl(
+            repository,
+            new FakeCatalogClient((_, _) => throw new CatalogServiceUnavailableException()));
+
+        var act = async () => await service.CreateAsync(OrderTestData.CreateOrderRequest());
+
+        await act.Should().ThrowAsync<CatalogServiceUnavailableException>();
+        repository.Orders.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetByIdAsync_WhenOrderExists_ShouldReturnOrder()
     {
         var order = OrderTestData.OrderDocument();
-        var service = new OrderServiceImpl(new InMemoryOrderRepository(order));
+        var service = CreateService(new InMemoryOrderRepository(order));
 
         var response = await service.GetByIdAsync(order.Id!);
 
@@ -39,7 +108,7 @@ public sealed class OrderServiceImplTests
     [Fact]
     public async Task GetByIdAsync_WhenOrderDoesNotExist_ShouldThrowNotFound()
     {
-        var service = new OrderServiceImpl(new InMemoryOrderRepository());
+        var service = CreateService(new InMemoryOrderRepository());
 
         var act = async () => await service.GetByIdAsync("missing-order");
 
@@ -56,7 +125,7 @@ public sealed class OrderServiceImplTests
             customerAccountId: "customer-1",
             createdAt: DateTime.UtcNow);
         var otherCustomerOrder = OrderTestData.OrderDocument(customerAccountId: "customer-2");
-        var service = new OrderServiceImpl(new InMemoryOrderRepository(olderOrder, newerOrder, otherCustomerOrder));
+        var service = CreateService(new InMemoryOrderRepository(olderOrder, newerOrder, otherCustomerOrder));
 
         var responses = await service.GetByCustomerAccountIdAsync("customer-1");
 
@@ -69,7 +138,7 @@ public sealed class OrderServiceImplTests
     {
         var restaurantOrder = OrderTestData.OrderDocument(restaurantId: "restaurant-1");
         var otherRestaurantOrder = OrderTestData.OrderDocument(restaurantId: "restaurant-2");
-        var service = new OrderServiceImpl(new InMemoryOrderRepository(restaurantOrder, otherRestaurantOrder));
+        var service = CreateService(new InMemoryOrderRepository(restaurantOrder, otherRestaurantOrder));
 
         var responses = await service.GetByRestaurantIdAsync("restaurant-1");
 
@@ -81,7 +150,7 @@ public sealed class OrderServiceImplTests
     public async Task UpdateStatusAsync_WhenTransitionIsValid_ShouldChangeStatus()
     {
         var order = OrderTestData.OrderDocument(status: OrderStatus.Created);
-        var service = new OrderServiceImpl(new InMemoryOrderRepository(order));
+        var service = CreateService(new InMemoryOrderRepository(order));
 
         var response = await service.UpdateStatusAsync(
             order.Id!,
@@ -95,7 +164,7 @@ public sealed class OrderServiceImplTests
     public async Task UpdateStatusAsync_WhenTransitionIsInvalid_ShouldThrow()
     {
         var order = OrderTestData.OrderDocument(status: OrderStatus.Created);
-        var service = new OrderServiceImpl(new InMemoryOrderRepository(order));
+        var service = CreateService(new InMemoryOrderRepository(order));
 
         var act = async () => await service.UpdateStatusAsync(
             order.Id!,
@@ -108,7 +177,7 @@ public sealed class OrderServiceImplTests
     public async Task UpdateStatusAsync_WhenOrderIsDelivered_ShouldThrow()
     {
         var order = OrderTestData.OrderDocument(status: OrderStatus.Delivered);
-        var service = new OrderServiceImpl(new InMemoryOrderRepository(order));
+        var service = CreateService(new InMemoryOrderRepository(order));
 
         var act = async () => await service.UpdateStatusAsync(
             order.Id!,
@@ -121,12 +190,19 @@ public sealed class OrderServiceImplTests
     public async Task UpdateStatusAsync_WhenOrderIsCancelled_ShouldThrow()
     {
         var order = OrderTestData.OrderDocument(status: OrderStatus.Cancelled);
-        var service = new OrderServiceImpl(new InMemoryOrderRepository(order));
+        var service = CreateService(new InMemoryOrderRepository(order));
 
         var act = async () => await service.UpdateStatusAsync(
             order.Id!,
             new UpdateOrderStatusRequest { Status = OrderStatus.Accepted });
 
         await act.Should().ThrowAsync<InvalidOrderStatusTransitionException>();
+    }
+
+    private static OrderServiceImpl CreateService(InMemoryOrderRepository repository)
+    {
+        return new OrderServiceImpl(
+            repository,
+            new FakeCatalogClient(OrderTestData.ValidatedOrderResponse()));
     }
 }

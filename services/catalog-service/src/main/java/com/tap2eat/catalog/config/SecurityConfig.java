@@ -3,7 +3,9 @@ package com.tap2eat.catalog.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
@@ -30,10 +32,17 @@ public class SecurityConfig {
             "/api/customer/**"
     };
 
+    private static final String[] INTERNAL_ENDPOINTS = {
+            "/internal/catalog/**"
+    };
+
+    private static final String INTERNAL_SERVICE_TOKEN_HEADER = "X-Internal-Service-Token";
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            Converter<Jwt, Collection<GrantedAuthority>> jwtGrantedAuthoritiesConverter
+            Converter<Jwt, Collection<GrantedAuthority>> jwtGrantedAuthoritiesConverter,
+            @Value("${tap2eat.internal.service-token:tap2eat-internal-dev-token}") String internalServiceToken
     ) throws Exception {
         JwtAuthenticationConverter authenticationConverter = new JwtAuthenticationConverter();
         authenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
@@ -45,6 +54,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_SYSTEM_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLIC_CUSTOMER_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.POST, INTERNAL_ENDPOINTS)
+                        .access((authentication, context) -> new AuthorizationDecision(
+                                internalServiceToken.equals(context.getRequest().getHeader(INTERNAL_SERVICE_TOKEN_HEADER))
+                        ))
                         .anyRequest().hasRole(RESTAURANT_OWNER_ROLE)
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

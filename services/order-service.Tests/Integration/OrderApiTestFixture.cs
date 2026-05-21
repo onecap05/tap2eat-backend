@@ -17,6 +17,7 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
         .Build();
 
     private IMongoCollection<OrderDocument>? _orders;
+    private CatalogStubServer? _catalogStubServer;
 
     public HttpClient Client { get; private set; } = null!;
 
@@ -25,14 +26,20 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
 
     public string DatabaseName => TestDatabaseName;
 
+    public CatalogStubServer Catalog =>
+        _catalogStubServer ?? throw new InvalidOperationException("Catalog stub server is not initialized.");
+
     public async Task InitializeAsync()
     {
         await _mongoDbContainer.StartAsync();
+        _catalogStubServer = new CatalogStubServer();
+        await _catalogStubServer.StartAsync();
 
         var factory = new OrderApiWebApplicationFactory(
             _mongoDbContainer.GetConnectionString(),
             TestDatabaseName,
-            OrdersCollectionName);
+            OrdersCollectionName,
+            _catalogStubServer.BaseUrl);
 
         Client = factory.CreateClient();
 
@@ -45,6 +52,10 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
     public async Task DisposeAsync()
     {
         Client.Dispose();
+        if (_catalogStubServer is not null)
+        {
+            await _catalogStubServer.DisposeAsync();
+        }
         await _mongoDbContainer.DisposeAsync();
     }
 
@@ -53,15 +64,18 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
         private readonly string _connectionString;
         private readonly string _databaseName;
         private readonly string _ordersCollectionName;
+        private readonly string _catalogBaseUrl;
 
         public OrderApiWebApplicationFactory(
             string connectionString,
             string databaseName,
-            string ordersCollectionName)
+            string ordersCollectionName,
+            string catalogBaseUrl)
         {
             _connectionString = connectionString;
             _databaseName = databaseName;
             _ordersCollectionName = ordersCollectionName;
+            _catalogBaseUrl = catalogBaseUrl;
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -72,7 +86,9 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
                 {
                     ["MongoDb:ConnectionString"] = _connectionString,
                     ["MongoDb:DatabaseName"] = _databaseName,
-                    ["MongoDb:OrdersCollectionName"] = _ordersCollectionName
+                    ["MongoDb:OrdersCollectionName"] = _ordersCollectionName,
+                    ["CatalogService:BaseUrl"] = _catalogBaseUrl,
+                    ["CatalogService:InternalServiceToken"] = "test-internal-token"
                 });
             });
         }

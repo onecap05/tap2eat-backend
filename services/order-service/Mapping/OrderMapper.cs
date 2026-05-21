@@ -3,6 +3,7 @@ using OrderService.Domain.Embedded;
 using OrderService.Domain.Enums;
 using OrderService.Dtos.Requests;
 using OrderService.Dtos.Responses;
+using OrderService.Integrations.Catalog.Dtos;
 
 namespace OrderService.Mapping;
 
@@ -23,6 +24,32 @@ public static class OrderMapper
             CustomerAccountId = request.CustomerAccountId,
             RestaurantId = request.RestaurantId,
             BranchId = request.BranchId,
+            Items = items,
+            Subtotal = subtotal,
+            Total = subtotal,
+            Status = OrderStatus.Created,
+            Notes = request.Notes,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+    }
+
+    public static OrderDocument ToDocument(
+        CreateOrderRequest request,
+        ValidateOrderResponse validatedOrder)
+    {
+        var now = DateTime.UtcNow;
+
+        var items = validatedOrder.Items
+            .Select(ToDocumentItem)
+            .ToList();
+        var subtotal = items.Sum(item => item.Subtotal);
+
+        return new OrderDocument
+        {
+            CustomerAccountId = request.CustomerAccountId,
+            RestaurantId = validatedOrder.RestaurantId,
+            BranchId = validatedOrder.BranchId,
             Items = items,
             Subtotal = subtotal,
             Total = subtotal,
@@ -71,6 +98,25 @@ public static class OrderMapper
         };
     }
 
+    private static OrderItem ToDocumentItem(ValidatedOrderItemResponse item)
+    {
+        var modifiers = item.SelectedModifiers
+            .Select(ToDocumentModifier)
+            .ToList();
+        var modifiersTotal = modifiers.Sum(modifier => modifier.PriceAdjustment);
+        var subtotal = (item.UnitPrice + modifiersTotal) * item.Quantity;
+
+        return new OrderItem
+        {
+            ProductId = item.ProductId,
+            ProductNameSnapshot = item.ProductName,
+            Quantity = item.Quantity,
+            UnitPriceSnapshot = item.UnitPrice,
+            SelectedModifiers = modifiers,
+            Subtotal = subtotal
+        };
+    }
+
     private static SelectedModifier ToDocumentModifier(SelectedModifierRequest request)
     {
         return new SelectedModifier
@@ -80,6 +126,18 @@ public static class OrderMapper
             ModifierOptionId = request.ModifierOptionId,
             ModifierOptionName = request.ModifierOptionName,
             PriceAdjustment = request.PriceAdjustment
+        };
+    }
+
+    private static SelectedModifier ToDocumentModifier(ValidatedModifierResponse response)
+    {
+        return new SelectedModifier
+        {
+            ModifierGroupId = response.ModifierGroupId,
+            ModifierGroupName = response.ModifierGroupName,
+            ModifierOptionId = response.ModifierOptionId,
+            ModifierOptionName = response.ModifierOptionName,
+            PriceAdjustment = response.PriceAdjustment
         };
     }
 

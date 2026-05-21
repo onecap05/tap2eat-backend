@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using OrderService.Domain.Enums;
@@ -29,6 +30,7 @@ public sealed class OrdersControllerIntegrationTests : IClassFixture<OrderApiTes
     public async Task InitializeAsync()
     {
         await _fixture.Orders.DeleteManyAsync(Builders<OrderService.Domain.Documents.OrderDocument>.Filter.Empty);
+        _fixture.Catalog.Reset();
     }
 
     public Task DisposeAsync()
@@ -40,6 +42,7 @@ public sealed class OrdersControllerIntegrationTests : IClassFixture<OrderApiTes
     public async Task PostOrders_ShouldCreateOrderAndPersistItInMongo()
     {
         var request = OrderTestData.CreateOrderRequest();
+        _fixture.Catalog.RespondWith(OrderTestData.ValidatedOrderResponse(unitPrice: 50));
 
         var response = await _fixture.Client.PostAsJsonAsync("/api/orders", request, JsonOptions);
         var body = await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions);
@@ -53,6 +56,81 @@ public sealed class OrdersControllerIntegrationTests : IClassFixture<OrderApiTes
         body.Total.Should().Be(100);
         persistedOrder.Should().NotBeNull();
         persistedOrder!.CustomerAccountId.Should().Be(request.CustomerAccountId);
+        _fixture.Catalog.Requests.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PostOrders_ShouldPersistValidatedCatalogSnapshot()
+    {
+        var request = OrderTestData.CreateOrderRequestWithModifier();
+        _fixture.Catalog.RespondWith(OrderTestData.ValidatedOrderResponse(
+            productName: "Catalog Burger",
+            unitPrice: 80,
+            modifierPrice: 15));
+
+        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", request, JsonOptions);
+        var body = await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions);
+        var persistedOrder = await _fixture.Orders
+            .Find(order => order.Id == body!.Id)
+            .FirstOrDefaultAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        persistedOrder!.Items[0].ProductNameSnapshot.Should().Be("Catalog Burger");
+        persistedOrder.Items[0].UnitPriceSnapshot.Should().Be(80);
+        persistedOrder.Items[0].SelectedModifiers[0].ModifierOptionName.Should().Be("Catalog Cheese");
+        persistedOrder.Total.Should().Be(190);
+    }
+
+    [Fact]
+    public async Task PostOrders_ShouldIgnoreClientProvidedProductSnapshot()
+    {
+        var request = OrderTestData.CreateOrderRequest();
+        request.Items[0].ProductNameSnapshot = "Client Taco";
+        request.Items[0].UnitPriceSnapshot = 1;
+        _fixture.Catalog.RespondWith(OrderTestData.ValidatedOrderResponse(
+            productName: "Catalog Taco",
+            unitPrice: 70));
+
+        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", request, JsonOptions);
+        var body = await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        body!.Items[0].ProductNameSnapshot.Should().Be("Catalog Taco");
+        body.Items[0].UnitPriceSnapshot.Should().Be(70);
+        body.Total.Should().Be(140);
+    }
+
+    [Fact]
+    public async Task PostOrders_WhenCatalogRejectsProduct_ShouldReturnControlledError()
+    {
+        _fixture.Catalog.RespondWithStatus(StatusCodes.Status400BadRequest);
+
+        var response = await _fixture.Client.PostAsJsonAsync(
+            "/api/orders",
+            OrderTestData.CreateOrderRequest(),
+            JsonOptions);
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>(JsonOptions);
+        var count = await _fixture.Orders.CountDocumentsAsync(
+            Builders<OrderService.Domain.Documents.OrderDocument>.Filter.Empty);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        body!.Code.Should().Be("CATALOG_VALIDATION_FAILED");
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PostOrders_WhenCatalogServiceIsUnavailable_ShouldReturnControlledError()
+    {
+        _fixture.Catalog.RespondWithStatus(StatusCodes.Status500InternalServerError);
+
+        var response = await _fixture.Client.PostAsJsonAsync(
+            "/api/orders",
+            OrderTestData.CreateOrderRequest(),
+            JsonOptions);
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+        body!.Code.Should().Be("CATALOG_SERVICE_UNAVAILABLE");
     }
 
     [Fact]

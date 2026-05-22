@@ -2,6 +2,9 @@ package com.tap2eat.notification.services.impl;
 
 import com.tap2eat.notification.messaging.events.OrderCreatedEvent;
 import com.tap2eat.notification.messaging.events.OrderStatusChangedEvent;
+import com.tap2eat.notification.messaging.events.PaymentApprovedEvent;
+import com.tap2eat.notification.messaging.events.PaymentCancelledEvent;
+import com.tap2eat.notification.messaging.events.PaymentRejectedEvent;
 import com.tap2eat.notification.services.INotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +37,42 @@ public class NotificationServiceImpl implements INotificationService {
                 event.restaurantId(),
                 event.previousStatus(),
                 event.newStatus()
+        );
+    }
+
+    @Override
+    public void handlePaymentApproved(PaymentApprovedEvent event) {
+        log.info(
+                "Simulated notification for payment.approved: paymentId={}, orderId={}, customerAccountId={}, amount={}, providerReference={}",
+                event.paymentId(),
+                event.orderId(),
+                event.customerAccountId(),
+                event.amount(),
+                event.providerReference()
+        );
+    }
+
+    @Override
+    public void handlePaymentRejected(PaymentRejectedEvent event) {
+        log.info(
+                "Simulated notification for payment.rejected: paymentId={}, orderId={}, customerAccountId={}, amount={}, rejectionReason={}",
+                event.paymentId(),
+                event.orderId(),
+                event.customerAccountId(),
+                event.amount(),
+                event.rejectionReason()
+        );
+    }
+
+    @Override
+    public void handlePaymentCancelled(PaymentCancelledEvent event) {
+        log.info(
+                "Simulated notification for payment.cancelled: paymentId={}, orderId={}, customerAccountId={}, amount={}, reason={}",
+                event.paymentId(),
+                event.orderId(),
+                event.customerAccountId(),
+                event.amount(),
+                event.reason()
         );
     }
 }

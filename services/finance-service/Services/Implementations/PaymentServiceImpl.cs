@@ -5,6 +5,7 @@ using FinanceService.Dtos.Responses;
 using FinanceService.Exceptions;
 using FinanceService.Mapping;
 using FinanceService.Messaging.Events;
+using FinanceService.Messaging.Publishers;
 using FinanceService.Repositories.Interfaces;
 using FinanceService.Services.Interfaces;
 
@@ -14,15 +15,19 @@ public sealed class PaymentServiceImpl : IPaymentService
 {
     private const string SimulatedProvider = "SIMULATED";
     private const string CancelledOrderStatus = "Cancelled";
+    private const string OrderCancelledReason = "ORDER_CANCELLED";
 
     private readonly IPaymentRepository _paymentRepository;
+    private readonly IPaymentEventPublisher _paymentEventPublisher;
     private readonly ILogger<PaymentServiceImpl> _logger;
 
     public PaymentServiceImpl(
         IPaymentRepository paymentRepository,
+        IPaymentEventPublisher paymentEventPublisher,
         ILogger<PaymentServiceImpl> logger)
     {
         _paymentRepository = paymentRepository;
+        _paymentEventPublisher = paymentEventPublisher;
         _logger = logger;
     }
 
@@ -103,10 +108,24 @@ public sealed class PaymentServiceImpl : IPaymentService
 
         if (payment.Status != PaymentStatus.Pending)
         {
+            _logger.LogInformation(
+                "Order {OrderId} was cancelled, but payment {PaymentId} is already {PaymentStatus}. No payment event will be published.",
+                payment.OrderId,
+                payment.Id,
+                payment.Status);
             return;
         }
 
-        await CancelAsync(payment.Id, cancellationToken);
+        var now = DateTime.UtcNow;
+        payment.Status = PaymentStatus.Cancelled;
+        payment.CancelledAt = now;
+        payment.UpdatedAt = now;
+
+        var updatedPayment = await _paymentRepository.UpdateAsync(payment, cancellationToken);
+        await _paymentEventPublisher.PublishPaymentCancelledAsync(
+            updatedPayment,
+            OrderCancelledReason,
+            cancellationToken);
     }
 
     public async Task<PaymentResponse> GetByIdAsync(
@@ -173,6 +192,7 @@ public sealed class PaymentServiceImpl : IPaymentService
         payment.UpdatedAt = now;
 
         var updatedPayment = await _paymentRepository.UpdateAsync(payment, cancellationToken);
+        await _paymentEventPublisher.PublishPaymentApprovedAsync(updatedPayment, cancellationToken);
 
         return PaymentMapper.ToResponse(updatedPayment);
     }
@@ -198,6 +218,7 @@ public sealed class PaymentServiceImpl : IPaymentService
         payment.UpdatedAt = now;
 
         var updatedPayment = await _paymentRepository.UpdateAsync(payment, cancellationToken);
+        await _paymentEventPublisher.PublishPaymentRejectedAsync(updatedPayment, cancellationToken);
 
         return PaymentMapper.ToResponse(updatedPayment);
     }
@@ -216,6 +237,7 @@ public sealed class PaymentServiceImpl : IPaymentService
         payment.UpdatedAt = now;
 
         var updatedPayment = await _paymentRepository.UpdateAsync(payment, cancellationToken);
+        await _paymentEventPublisher.PublishPaymentCancelledAsync(updatedPayment, cancellationToken: cancellationToken);
 
         return PaymentMapper.ToResponse(updatedPayment);
     }

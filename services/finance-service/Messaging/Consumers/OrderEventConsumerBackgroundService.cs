@@ -44,7 +44,7 @@ public sealed class OrderEventConsumerBackgroundService : BackgroundService
         _channel = await _connection.CreateChannelAsync(cancellationToken: stoppingToken);
 
         await _channel.ExchangeDeclareAsync(
-            exchange: _settings.ExchangeName,
+            exchange: _settings.EffectiveOrderExchangeName,
             type: ExchangeType.Topic,
             durable: true,
             autoDelete: false,
@@ -52,7 +52,7 @@ public sealed class OrderEventConsumerBackgroundService : BackgroundService
             cancellationToken: stoppingToken);
 
         await _channel.QueueDeclareAsync(
-            queue: _settings.QueueName,
+            queue: _settings.EffectiveOrderQueueName,
             durable: true,
             exclusive: false,
             autoDelete: false,
@@ -60,9 +60,9 @@ public sealed class OrderEventConsumerBackgroundService : BackgroundService
             cancellationToken: stoppingToken);
 
         await _channel.QueueBindAsync(
-            queue: _settings.QueueName,
-            exchange: _settings.ExchangeName,
-            routingKey: _settings.RoutingKey,
+            queue: _settings.EffectiveOrderQueueName,
+            exchange: _settings.EffectiveOrderExchangeName,
+            routingKey: _settings.EffectiveOrderRoutingKey,
             arguments: null,
             cancellationToken: stoppingToken);
 
@@ -71,16 +71,16 @@ public sealed class OrderEventConsumerBackgroundService : BackgroundService
         consumer.ReceivedAsync += OnMessageReceivedAsync;
 
         await _channel.BasicConsumeAsync(
-            queue: _settings.QueueName,
+            queue: _settings.EffectiveOrderQueueName,
             autoAck: false,
             consumer: consumer,
             cancellationToken: stoppingToken);
 
         _logger.LogInformation(
             "Finance RabbitMQ consumer started. Exchange={ExchangeName}, Queue={QueueName}, RoutingKey={RoutingKey}",
-            _settings.ExchangeName,
-            _settings.QueueName,
-            _settings.RoutingKey);
+            _settings.EffectiveOrderExchangeName,
+            _settings.EffectiveOrderQueueName,
+            _settings.EffectiveOrderRoutingKey);
 
         await Task.Delay(Timeout.InfiniteTimeSpan, stoppingToken);
     }

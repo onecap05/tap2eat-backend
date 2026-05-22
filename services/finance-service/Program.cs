@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using FinanceService.Config;
 using FinanceService.Data;
 using FinanceService.Messaging.Consumers;
+using FinanceService.Messaging.Publishers;
 using FinanceService.Middleware;
 using FinanceService.Repositories.Implementations;
 using FinanceService.Repositories.Interfaces;
@@ -35,6 +36,7 @@ builder.Services.AddDbContext<FinanceDbContext>((serviceProvider, options) =>
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
 builder.Services.AddScoped<IOrderEventProcessor, OrderEventProcessorImpl>();
+builder.Services.AddScoped<IPaymentEventPublisher, RabbitMqPaymentEventPublisherImpl>();
 
 var rabbitMqSettings = builder.Configuration
     .GetSection(RabbitMqSettings.SectionName)

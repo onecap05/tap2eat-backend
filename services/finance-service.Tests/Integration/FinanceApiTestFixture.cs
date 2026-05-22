@@ -73,7 +73,12 @@ public sealed class FinanceApiTestFixture : IAsyncLifetime
                     ["RabbitMq:Password"] = "tap2eat",
                     ["RabbitMq:ExchangeName"] = "tap2eat.orders",
                     ["RabbitMq:QueueName"] = "tap2eat.finance.orders",
-                    ["RabbitMq:RoutingKey"] = "order.#"
+                    ["RabbitMq:RoutingKey"] = "order.#",
+                    ["RabbitMq:OrderExchangeName"] = "tap2eat.orders",
+                    ["RabbitMq:OrderQueueName"] = "tap2eat.finance.orders",
+                    ["RabbitMq:OrderRoutingKey"] = "order.#",
+                    ["RabbitMq:PaymentExchangeName"] = "tap2eat.payments",
+                    ["RabbitMq:PaymentExchangeType"] = "topic"
                 });
             });
         }

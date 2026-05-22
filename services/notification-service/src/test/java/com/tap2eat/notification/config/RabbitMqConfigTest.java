@@ -45,6 +45,44 @@ class RabbitMqConfigTest {
         assertEquals("order.#", binding.getRoutingKey());
     }
 
+    @Test
+    void shouldCreatePaymentExchangeWithConfiguredName() {
+        RabbitMqProperties properties = properties("custom.orders", "custom.notifications", "order.#");
+        properties.getPayments().setExchangeName("custom.payments");
+
+        TopicExchange exchange = config.paymentsExchange(properties);
+
+        assertEquals("custom.payments", exchange.getName());
+        assertTrue(exchange.isDurable());
+    }
+
+    @Test
+    void shouldCreatePaymentQueueWithConfiguredName() {
+        RabbitMqProperties properties = properties("custom.orders", "custom.notifications", "order.#");
+        properties.getPayments().setQueueName("custom.payment.notifications");
+
+        Queue queue = config.paymentsNotificationQueue(properties);
+
+        assertEquals("custom.payment.notifications", queue.getName());
+        assertTrue(queue.isDurable());
+    }
+
+    @Test
+    void shouldCreatePaymentBindingWithRoutingKeyPaymentHash() {
+        RabbitMqProperties properties = properties("tap2eat.orders", "tap2eat.notifications.orders", "order.#");
+        properties.getPayments().setExchangeName("tap2eat.payments");
+        properties.getPayments().setQueueName("tap2eat.notifications.payments");
+        properties.getPayments().setRoutingKey("payment.#");
+        TopicExchange exchange = config.paymentsExchange(properties);
+        Queue queue = config.paymentsNotificationQueue(properties);
+
+        Binding binding = config.paymentsNotificationBinding(queue, exchange, properties);
+
+        assertEquals("tap2eat.notifications.payments", binding.getDestination());
+        assertEquals("tap2eat.payments", binding.getExchange());
+        assertEquals("payment.#", binding.getRoutingKey());
+    }
+
     private RabbitMqProperties properties(String exchangeName, String queueName, String routingKey) {
         RabbitMqProperties properties = new RabbitMqProperties();
         properties.setExchangeName(exchangeName);

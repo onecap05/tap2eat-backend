@@ -85,6 +85,9 @@ services:
       NOTIFICATION_ORDER_EXCHANGE: tap2eat.orders
       NOTIFICATION_ORDER_QUEUE: tap2eat.notifications.orders
       NOTIFICATION_ORDER_ROUTING_KEY: order.#
+      NOTIFICATION_PAYMENT_EXCHANGE: tap2eat.payments
+      NOTIFICATION_PAYMENT_QUEUE: tap2eat.notifications.payments
+      NOTIFICATION_PAYMENT_ROUTING_KEY: payment.#
     volumes:
       - ../secrets/google/credentials.json:/run/secrets/google/credentials.json:ro
       - ../secrets/google/tokens:/run/secrets/google/tokens
@@ -137,6 +140,11 @@ services:
       RabbitMq__ExchangeName: tap2eat.orders
       RabbitMq__QueueName: tap2eat.finance.orders
       RabbitMq__RoutingKey: order.#
+      RabbitMq__OrderExchangeName: tap2eat.orders
+      RabbitMq__OrderQueueName: tap2eat.finance.orders
+      RabbitMq__OrderRoutingKey: order.#
+      RabbitMq__PaymentExchangeName: tap2eat.payments
+      RabbitMq__PaymentExchangeType: topic
       RabbitMq__Enabled: true
     depends_on:
       - postgres

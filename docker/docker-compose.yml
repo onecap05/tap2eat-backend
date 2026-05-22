@@ -78,9 +78,18 @@ services:
       GMAIL_CREDENTIALS_PATH: ${GMAIL_CREDENTIALS_PATH}
       GMAIL_TOKENS_DIR: ${GMAIL_TOKENS_DIR}
       GMAIL_FROM: ${GMAIL_FROM}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER:-tap2eat}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+      NOTIFICATION_ORDER_EXCHANGE: tap2eat.orders
+      NOTIFICATION_ORDER_QUEUE: tap2eat.notifications.orders
+      NOTIFICATION_ORDER_ROUTING_KEY: order.#
     volumes:
       - ../secrets/google/credentials.json:/run/secrets/google/credentials.json:ro
       - ../secrets/google/tokens:/run/secrets/google/tokens
+    depends_on:
+      - rabbitmq
     ports:
       - "${NOTIFICATION_HTTP_PORT}:${NOTIFICATION_HTTP_PORT}"
       - "${NOTIFICATION_GRPC_PORT}:${NOTIFICATION_GRPC_PORT}"

@@ -129,11 +129,15 @@ services:
     container_name: tap2eat-finance-service
     environment:
       ASPNETCORE_HTTP_PORTS: 8083
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tap2eat_finance;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Postgres__ConnectionString: "Host=postgres;Port=5432;Database=tap2eat_finance;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: 5672
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+      RabbitMq__ExchangeName: tap2eat.orders
+      RabbitMq__QueueName: tap2eat.finance.orders
+      RabbitMq__RoutingKey: order.#
+      RabbitMq__Enabled: true
     depends_on:
       - postgres
       - rabbitmq

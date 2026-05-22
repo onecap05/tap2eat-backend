@@ -2,6 +2,7 @@
   <Folder Name="/services/" />
   <Folder Name="/services/finance-service/">
     <Project Path="services/finance-service/FinanceService.csproj" />
+    <Project Path="services/finance-service.Tests/FinanceService.Tests.csproj" />
   </Folder>
   <Folder Name="/services/order-service/">
     <Project Path="services/order-service/OrderService.csproj" />

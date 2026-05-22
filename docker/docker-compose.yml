@@ -58,6 +58,7 @@ services:
 
       DEFAULT_PRODUCT_IMAGE_URL: ${DEFAULT_PRODUCT_IMAGE_URL}
       DEFAULT_PRODUCT_IMAGE_OBJECT_KEY: ${DEFAULT_PRODUCT_IMAGE_OBJECT_KEY}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-tap2eat-internal-dev-token}
     depends_on:
       - mongodb
     ports:
@@ -77,9 +78,21 @@ services:
       GMAIL_CREDENTIALS_PATH: ${GMAIL_CREDENTIALS_PATH}
       GMAIL_TOKENS_DIR: ${GMAIL_TOKENS_DIR}
       GMAIL_FROM: ${GMAIL_FROM}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER:-tap2eat}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+      NOTIFICATION_ORDER_EXCHANGE: tap2eat.orders
+      NOTIFICATION_ORDER_QUEUE: tap2eat.notifications.orders
+      NOTIFICATION_ORDER_ROUTING_KEY: order.#
+      NOTIFICATION_PAYMENT_EXCHANGE: tap2eat.payments
+      NOTIFICATION_PAYMENT_QUEUE: tap2eat.notifications.payments
+      NOTIFICATION_PAYMENT_ROUTING_KEY: payment.#
     volumes:
       - ../secrets/google/credentials.json:/run/secrets/google/credentials.json:ro
       - ../secrets/google/tokens:/run/secrets/google/tokens
+    depends_on:
+      - rabbitmq
     ports:
       - "${NOTIFICATION_HTTP_PORT}:${NOTIFICATION_HTTP_PORT}"
       - "${NOTIFICATION_GRPC_PORT}:${NOTIFICATION_GRPC_PORT}"
@@ -96,12 +109,15 @@ services:
       ASPNETCORE_HTTP_PORTS: 8085
       MongoDb__ConnectionString: "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/tap2eat_orders?authSource=admin"
       MongoDb__DatabaseName: tap2eat_orders
+      CatalogService__BaseUrl: "http://catalog-service:8082"
+      CatalogService__InternalServiceToken: ${INTERNAL_SERVICE_TOKEN:-tap2eat-internal-dev-token}
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: 5672
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
     depends_on:
       - mongodb
+      - catalog-service
       - rabbitmq
     ports:
       - "8085:8085"
@@ -116,11 +132,20 @@ services:
     container_name: tap2eat-finance-service
     environment:
       ASPNETCORE_HTTP_PORTS: 8083
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=tap2eat_finance;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      Postgres__ConnectionString: "Host=postgres;Port=5432;Database=tap2eat_finance;Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
       RabbitMq__HostName: rabbitmq
       RabbitMq__Port: 5672
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+      RabbitMq__ExchangeName: tap2eat.orders
+      RabbitMq__QueueName: tap2eat.finance.orders
+      RabbitMq__RoutingKey: order.#
+      RabbitMq__OrderExchangeName: tap2eat.orders
+      RabbitMq__OrderQueueName: tap2eat.finance.orders
+      RabbitMq__OrderRoutingKey: order.#
+      RabbitMq__PaymentExchangeName: tap2eat.payments
+      RabbitMq__PaymentExchangeType: topic
+      RabbitMq__Enabled: true
     depends_on:
       - postgres
       - rabbitmq

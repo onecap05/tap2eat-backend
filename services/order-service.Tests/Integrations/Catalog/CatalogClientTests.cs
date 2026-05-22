@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using OrderService.Exceptions;
 using OrderService.Integrations.Catalog;
 using OrderService.Integrations.Catalog.Dtos;
+using System.Text.Json;
 using OrderService.Tests.Fakes;
 using OrderService.Tests.TestData;
 
@@ -21,7 +23,19 @@ public sealed class CatalogClientTests
         await client.ValidateOrderAsync(request);
 
         handler.LastRequest!.RequestUri!.PathAndQuery.Should().Be("/internal/catalog/orders/validate");
-        var body = await handler.LastRequest.Content!.ReadFromJsonAsync<ValidateOrderRequest>();
+
+        handler.LastRequest.Headers
+            .GetValues("X-Internal-Service-Token")
+            .Should()
+            .ContainSingle("test-internal-token");
+
+        var body = JsonSerializer.Deserialize<ValidateOrderRequest>(
+    handler.LastRequestBody!,
+    new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true
+    });
+
         body!.RestaurantId.Should().Be(request.RestaurantId);
         body.BranchId.Should().Be(request.BranchId);
         body.Items.Should().ContainSingle();
@@ -83,6 +97,12 @@ public sealed class CatalogClientTests
             BaseAddress = new Uri("http://catalog-service")
         };
 
-        return new CatalogClient(httpClient);
+        var options = Options.Create(new CatalogServiceSettings
+        {
+            BaseUrl = "http://catalog-service",
+            InternalServiceToken = "test-internal-token"
+        });
+
+        return new CatalogClient(httpClient, options);
     }
 }

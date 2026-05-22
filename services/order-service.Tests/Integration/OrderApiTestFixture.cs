@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MongoDB.Driver;
 using OrderService.Domain.Documents;
+using OrderService.Messaging.Publishers;
+using OrderService.Tests.Fakes;
 using Testcontainers.MongoDb;
 
 namespace OrderService.Tests.Integration;
@@ -18,6 +22,7 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
 
     private IMongoCollection<OrderDocument>? _orders;
     private CatalogStubServer? _catalogStubServer;
+    private OrderApiWebApplicationFactory? _factory;
 
     public HttpClient Client { get; private set; } = null!;
 
@@ -32,18 +37,20 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _mongoDbContainer.StartAsync();
+
         _catalogStubServer = new CatalogStubServer();
         await _catalogStubServer.StartAsync();
 
-        var factory = new OrderApiWebApplicationFactory(
+        _factory = new OrderApiWebApplicationFactory(
             _mongoDbContainer.GetConnectionString(),
             TestDatabaseName,
             OrdersCollectionName,
             _catalogStubServer.BaseUrl);
 
-        Client = factory.CreateClient();
+        Client = _factory.CreateClient();
 
         var mongoClient = new MongoClient(_mongoDbContainer.GetConnectionString());
+
         _orders = mongoClient
             .GetDatabase(TestDatabaseName)
             .GetCollection<OrderDocument>(OrdersCollectionName);
@@ -52,10 +59,13 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
     public async Task DisposeAsync()
     {
         Client.Dispose();
+        _factory?.Dispose();
+
         if (_catalogStubServer is not null)
         {
             await _catalogStubServer.DisposeAsync();
         }
+
         await _mongoDbContainer.DisposeAsync();
     }
 
@@ -87,9 +97,24 @@ public sealed class OrderApiTestFixture : IAsyncLifetime
                     ["MongoDb:ConnectionString"] = _connectionString,
                     ["MongoDb:DatabaseName"] = _databaseName,
                     ["MongoDb:OrdersCollectionName"] = _ordersCollectionName,
+
                     ["CatalogService:BaseUrl"] = _catalogBaseUrl,
-                    ["CatalogService:InternalServiceToken"] = "test-internal-token"
+                    ["CatalogService:InternalServiceToken"] = "test-internal-token",
+
+                    ["RabbitMq:Enabled"] = "false",
+                    ["RabbitMq:HostName"] = "localhost",
+                    ["RabbitMq:Port"] = "5672",
+                    ["RabbitMq:UserName"] = "tap2eat",
+                    ["RabbitMq:Password"] = "tap2eat",
+                    ["RabbitMq:ExchangeName"] = "tap2eat.orders",
+                    ["RabbitMq:ExchangeType"] = "topic"
                 });
+            });
+
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IOrderEventPublisher>();
+                services.AddSingleton<IOrderEventPublisher, FakeOrderEventPublisher>();
             });
         }
     }

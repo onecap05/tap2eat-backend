@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.Options;
 using OrderService.Dtos.Requests;
 using OrderService.Exceptions;
 using OrderService.Integrations.Catalog.Dtos;
@@ -9,12 +10,17 @@ namespace OrderService.Integrations.Catalog;
 public sealed class CatalogClient : ICatalogClient
 {
     private const string ValidateOrderPath = "/internal/catalog/orders/validate";
+    private const string InternalServiceTokenHeaderName = "X-Internal-Service-Token";
 
     private readonly HttpClient _httpClient;
+    private readonly CatalogServiceSettings _settings;
 
-    public CatalogClient(HttpClient httpClient)
+    public CatalogClient(
+        HttpClient httpClient,
+        IOptions<CatalogServiceSettings> options)
     {
         _httpClient = httpClient;
+        _settings = options.Value;
     }
 
     public async Task<ValidateOrderResponse> ValidateOrderAsync(
@@ -23,11 +29,24 @@ public sealed class CatalogClient : ICatalogClient
     {
         var catalogRequest = ToCatalogRequest(request);
 
+        using var httpRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            ValidateOrderPath)
+        {
+            Content = JsonContent.Create(catalogRequest)
+        };
+
+        if (!string.IsNullOrWhiteSpace(_settings.InternalServiceToken))
+        {
+            httpRequest.Headers.TryAddWithoutValidation(
+                InternalServiceTokenHeaderName,
+                _settings.InternalServiceToken);
+        }
+
         try
         {
-            using var response = await _httpClient.PostAsJsonAsync(
-                ValidateOrderPath,
-                catalogRequest,
+            using var response = await _httpClient.SendAsync(
+                httpRequest,
                 cancellationToken);
 
             if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Conflict or HttpStatusCode.NotFound)
@@ -41,7 +60,7 @@ public sealed class CatalogClient : ICatalogClient
             }
 
             var validatedOrder = await response.Content.ReadFromJsonAsync<ValidateOrderResponse>(
-                cancellationToken);
+                cancellationToken: cancellationToken);
 
             if (validatedOrder is null || !validatedOrder.Valid)
             {

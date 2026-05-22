@@ -1,20 +1,25 @@
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using OrderService.Config;
+using OrderService.Integrations.Catalog;
+using OrderService.Middleware;
+using OrderService.Messaging.Publishers;
 using OrderService.Repositories.Implementations;
-using System.Text.Json.Serialization;
 using OrderService.Repositories.Interfaces;
 using OrderService.Services.Implementations;
 using OrderService.Services.Interfaces;
-using OrderService.Middleware;
-using OrderService.Integrations.Catalog;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<MongoDbSettings>(
     builder.Configuration.GetSection(MongoDbSettings.SectionName));
+
 builder.Services.Configure<CatalogServiceSettings>(
     builder.Configuration.GetSection(CatalogServiceSettings.SectionName));
+
+builder.Services.Configure<RabbitMqSettings>(
+    builder.Configuration.GetSection(RabbitMqSettings.SectionName));
 
 builder.Services.AddSingleton<IMongoClient>(serviceProvider =>
 {
@@ -30,24 +35,30 @@ builder.Services.AddSingleton<IMongoClient>(serviceProvider =>
     return new MongoClient(settings.ConnectionString);
 });
 
-builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
-builder.Services.AddHttpClient<ICatalogClient, CatalogClient>((serviceProvider, httpClient) =>
+builder.Services.AddHttpClient<ICatalogClient, CatalogClient>((serviceProvider, client) =>
 {
     var settings = serviceProvider
-        .GetRequiredService<Microsoft.Extensions.Options.IOptions<CatalogServiceSettings>>()
+        .GetRequiredService<IOptions<CatalogServiceSettings>>()
         .Value;
 
-    httpClient.BaseAddress = new Uri(settings.BaseUrl);
-    httpClient.Timeout = TimeSpan.FromSeconds(5);
-    httpClient.DefaultRequestHeaders.Add("X-Internal-Service-Token", settings.InternalServiceToken);
+    if (string.IsNullOrWhiteSpace(settings.BaseUrl))
+    {
+        throw new InvalidOperationException("Catalog service base URL is not configured.");
+    }
+
+    client.BaseAddress = new Uri(settings.BaseUrl);
 });
+
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
+builder.Services.AddScoped<IOrderEventPublisher, RabbitMqOrderEventPublisherImpl>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

@@ -1,9 +1,10 @@
+using OrderService.Domain.Enums;
 using OrderService.Dtos.Requests;
 using OrderService.Dtos.Responses;
-using OrderService.Domain.Enums;
 using OrderService.Exceptions;
 using OrderService.Integrations.Catalog;
 using OrderService.Mapping;
+using OrderService.Messaging.Publishers;
 using OrderService.Repositories.Interfaces;
 using OrderService.Services.Interfaces;
 
@@ -13,11 +14,16 @@ public sealed class OrderServiceImpl : IOrderService
 {
     private readonly IOrderRepository _orderRepository;
     private readonly ICatalogClient _catalogClient;
+    private readonly IOrderEventPublisher _orderEventPublisher;
 
-    public OrderServiceImpl(IOrderRepository orderRepository, ICatalogClient catalogClient)
+    public OrderServiceImpl(
+        IOrderRepository orderRepository,
+        ICatalogClient catalogClient,
+        IOrderEventPublisher orderEventPublisher)
     {
         _orderRepository = orderRepository;
         _catalogClient = catalogClient;
+        _orderEventPublisher = orderEventPublisher;
     }
 
     public async Task<OrderResponse> CreateAsync(
@@ -25,10 +31,16 @@ public sealed class OrderServiceImpl : IOrderService
         CancellationToken cancellationToken = default)
     {
         var validatedOrder = await _catalogClient.ValidateOrderAsync(request, cancellationToken);
+
         var document = OrderMapper.ToDocument(request, validatedOrder);
+
         var createdOrder = await _orderRepository.CreateAsync(document, cancellationToken);
 
-        return OrderMapper.ToResponse(createdOrder);
+        var response = OrderMapper.ToResponse(createdOrder);
+
+        await _orderEventPublisher.PublishOrderCreatedAsync(response, cancellationToken);
+
+        return response;
     }
 
     public async Task<OrderResponse> GetByIdAsync(
@@ -49,18 +61,26 @@ public sealed class OrderServiceImpl : IOrderService
         string customerAccountId,
         CancellationToken cancellationToken = default)
     {
-        var orders = await _orderRepository.FindByCustomerAccountIdAsync(customerAccountId, cancellationToken);
+        var orders = await _orderRepository.FindByCustomerAccountIdAsync(
+            customerAccountId,
+            cancellationToken);
 
-        return orders.Select(OrderMapper.ToResponse).ToList();
+        return orders
+            .Select(OrderMapper.ToResponse)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<OrderResponse>> GetByRestaurantIdAsync(
         string restaurantId,
         CancellationToken cancellationToken = default)
     {
-        var orders = await _orderRepository.FindByRestaurantIdAsync(restaurantId, cancellationToken);
+        var orders = await _orderRepository.FindByRestaurantIdAsync(
+            restaurantId,
+            cancellationToken);
 
-        return orders.Select(OrderMapper.ToResponse).ToList();
+        return orders
+            .Select(OrderMapper.ToResponse)
+            .ToList();
     }
 
     public async Task<OrderResponse> UpdateStatusAsync(
@@ -76,6 +96,7 @@ public sealed class OrderServiceImpl : IOrderService
         }
 
         var requestedStatus = request.Status!.Value;
+        var previousStatus = order.Status.ToString();
 
         if (!CanTransition(order.Status, requestedStatus))
         {
@@ -93,7 +114,14 @@ public sealed class OrderServiceImpl : IOrderService
             throw new OrderNotFoundException(id);
         }
 
-        return OrderMapper.ToResponse(updatedOrder);
+        var response = OrderMapper.ToResponse(updatedOrder);
+
+        await _orderEventPublisher.PublishOrderStatusChangedAsync(
+            response,
+            previousStatus,
+            cancellationToken);
+
+        return response;
     }
 
     private static bool CanTransition(OrderStatus currentStatus, OrderStatus requestedStatus)

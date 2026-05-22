@@ -4,7 +4,7 @@ public sealed class CatalogServiceSettings
 {
     public const string SectionName = "CatalogService";
 
-    public string BaseUrl { get; set; } = "http://localhost:8082";
+    public string BaseUrl { get; set; } = string.Empty;
 
-    public string InternalServiceToken { get; set; } = "tap2eat-internal-dev-token";
+    public string InternalServiceToken { get; set; } = string.Empty;
 }

@@ -4,6 +4,7 @@ using MongoDB.Driver;
 using OrderService.Config;
 using OrderService.Domain.Documents;
 using OrderService.Domain.Enums;
+using OrderService.Dtos.Requests;
 using OrderService.Repositories.Interfaces;
 
 namespace OrderService.Repositories.Implementations;
@@ -46,8 +47,21 @@ public sealed class OrderRepository : IOrderRepository
         string customerAccountId,
         CancellationToken cancellationToken = default)
     {
+        return await FindByCustomerAccountIdAsync(
+            customerAccountId,
+            new OrderQueryRequest(),
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderDocument>> FindByCustomerAccountIdAsync(
+        string customerAccountId,
+        OrderQueryRequest query,
+        CancellationToken cancellationToken = default)
+    {
         return await _orders
-            .Find(order => order.CustomerAccountId == customerAccountId)
+            .Find(BuildQueryFilter(
+                Builders<OrderDocument>.Filter.Eq(order => order.CustomerAccountId, customerAccountId),
+                query))
             .SortByDescending(order => order.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -56,8 +70,34 @@ public sealed class OrderRepository : IOrderRepository
         string restaurantId,
         CancellationToken cancellationToken = default)
     {
+        return await FindByRestaurantIdAsync(
+            restaurantId,
+            new OrderQueryRequest(),
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderDocument>> FindByRestaurantIdAsync(
+        string restaurantId,
+        OrderQueryRequest query,
+        CancellationToken cancellationToken = default)
+    {
         return await _orders
-            .Find(order => order.RestaurantId == restaurantId)
+            .Find(BuildQueryFilter(
+                Builders<OrderDocument>.Filter.Eq(order => order.RestaurantId, restaurantId),
+                query))
+            .SortByDescending(order => order.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderDocument>> FindByBranchIdAsync(
+        string branchId,
+        OrderQueryRequest query,
+        CancellationToken cancellationToken = default)
+    {
+        return await _orders
+            .Find(BuildQueryFilter(
+                Builders<OrderDocument>.Filter.Eq(order => order.BranchId, branchId),
+                query))
             .SortByDescending(order => order.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -85,5 +125,30 @@ public sealed class OrderRepository : IOrderRepository
                 ReturnDocument = ReturnDocument.After
             },
             cancellationToken);
+    }
+
+    private static FilterDefinition<OrderDocument> BuildQueryFilter(
+        FilterDefinition<OrderDocument> baseFilter,
+        OrderQueryRequest query)
+    {
+        var filters = new List<FilterDefinition<OrderDocument>> { baseFilter };
+        var builder = Builders<OrderDocument>.Filter;
+
+        if (query.Status.HasValue)
+        {
+            filters.Add(builder.Eq(order => order.Status, query.Status.Value));
+        }
+
+        if (query.From.HasValue)
+        {
+            filters.Add(builder.Gte(order => order.CreatedAt, query.From.Value));
+        }
+
+        if (query.To.HasValue)
+        {
+            filters.Add(builder.Lte(order => order.CreatedAt, query.To.Value));
+        }
+
+        return builder.And(filters);
     }
 }

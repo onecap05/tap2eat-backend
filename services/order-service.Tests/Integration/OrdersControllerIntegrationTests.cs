@@ -179,6 +179,62 @@ public sealed class OrdersControllerIntegrationTests : IClassFixture<OrderApiTes
     }
 
     [Fact]
+    public async Task GetOrdersByCustomerAccountId_WithStatus_ShouldReturnFilteredResults()
+    {
+        var createdOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-status",
+            status: OrderStatus.Created);
+        var acceptedOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-status",
+            status: OrderStatus.Accepted);
+        await _fixture.Orders.InsertManyAsync([createdOrder, acceptedOrder]);
+
+        var response = await _fixture.Client.GetAsync("/api/orders/customer/customer-status?status=Created");
+        var body = await response.Content.ReadFromJsonAsync<List<OrderResponse>>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.Should().ContainSingle();
+        body![0].Id.Should().Be(createdOrder.Id);
+        body[0].Status.Should().Be(OrderStatus.Created);
+    }
+
+    [Fact]
+    public async Task GetOrdersByCustomerAccountId_WithFromAndTo_ShouldFilterByCreatedAt()
+    {
+        var from = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 5, 22, 0, 0, 0, DateTimeKind.Utc);
+        var olderOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-date-range",
+            createdAt: from.AddDays(-1));
+        var inRangeOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-date-range",
+            createdAt: from.AddDays(10));
+        var newerOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-date-range",
+            createdAt: to.AddDays(1));
+        await _fixture.Orders.InsertManyAsync([olderOrder, inRangeOrder, newerOrder]);
+
+        var response = await _fixture.Client.GetAsync(
+            "/api/orders/customer/customer-date-range?from=2026-05-01&to=2026-05-22");
+        var body = await response.Content.ReadFromJsonAsync<List<OrderResponse>>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.Should().ContainSingle();
+        body![0].Id.Should().Be(inRangeOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetOrdersByCustomerAccountId_WithInvalidDateRange_ShouldReturnBadRequest()
+    {
+        var response = await _fixture.Client.GetAsync(
+            "/api/orders/customer/customer-invalid?from=2026-05-22&to=2026-05-01");
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        body!.Code.Should().Be("ORDER_VALIDATION_ERROR");
+    }
+
+    [Fact]
     public async Task GetOrdersByRestaurantId_ShouldReturnOnlyRestaurantOrders()
     {
         var restaurantOrder = OrderTestData.OrderDocument(restaurantId: "restaurant-1");
@@ -191,6 +247,62 @@ public sealed class OrdersControllerIntegrationTests : IClassFixture<OrderApiTes
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         body.Should().ContainSingle();
         body![0].Id.Should().Be(restaurantOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetOrdersByRestaurantId_WithStatus_ShouldReturnFilteredResults()
+    {
+        var createdOrder = OrderTestData.OrderDocument(
+            restaurantId: "restaurant-status",
+            status: OrderStatus.Created);
+        var acceptedOrder = OrderTestData.OrderDocument(
+            restaurantId: "restaurant-status",
+            status: OrderStatus.Accepted);
+        await _fixture.Orders.InsertManyAsync([createdOrder, acceptedOrder]);
+
+        var response = await _fixture.Client.GetAsync("/api/orders/restaurant/restaurant-status?status=Accepted");
+        var body = await response.Content.ReadFromJsonAsync<List<OrderResponse>>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.Should().ContainSingle();
+        body![0].Id.Should().Be(acceptedOrder.Id);
+        body[0].Status.Should().Be(OrderStatus.Accepted);
+    }
+
+    [Fact]
+    public async Task GetOrdersByBranchId_ShouldReturnOnlyBranchOrders()
+    {
+        var branchOrder = OrderTestData.OrderDocument(branchId: "branch-1");
+        var otherBranchOrder = OrderTestData.OrderDocument(branchId: "branch-2");
+        await _fixture.Orders.InsertManyAsync([branchOrder, otherBranchOrder]);
+
+        var response = await _fixture.Client.GetAsync("/api/orders/branch/branch-1");
+        var body = await response.Content.ReadFromJsonAsync<List<OrderResponse>>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.Should().ContainSingle();
+        body![0].Id.Should().Be(branchOrder.Id);
+        body[0].BranchId.Should().Be("branch-1");
+    }
+
+    [Fact]
+    public async Task GetOrdersByBranchId_WithStatus_ShouldReturnFilteredResults()
+    {
+        var createdOrder = OrderTestData.OrderDocument(
+            branchId: "branch-status",
+            status: OrderStatus.Created);
+        var acceptedOrder = OrderTestData.OrderDocument(
+            branchId: "branch-status",
+            status: OrderStatus.Accepted);
+        await _fixture.Orders.InsertManyAsync([createdOrder, acceptedOrder]);
+
+        var response = await _fixture.Client.GetAsync("/api/orders/branch/branch-status?status=Created");
+        var body = await response.Content.ReadFromJsonAsync<List<OrderResponse>>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.Should().ContainSingle();
+        body![0].Id.Should().Be(createdOrder.Id);
+        body[0].Status.Should().Be(OrderStatus.Created);
     }
 
     [Fact]

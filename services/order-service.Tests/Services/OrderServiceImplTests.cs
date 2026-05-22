@@ -152,6 +152,75 @@ public sealed class OrderServiceImplTests
     }
 
     [Fact]
+    public async Task GetByCustomerAccountIdAsync_WithStatus_ShouldReturnOnlyMatchingStatus()
+    {
+        var createdOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-filter",
+            status: OrderStatus.Created);
+        var acceptedOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-filter",
+            status: OrderStatus.Accepted);
+        var catalogClient = new FakeCatalogClient(OrderTestData.ValidatedOrderResponse());
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = CreateService(
+            new InMemoryOrderRepository(createdOrder, acceptedOrder),
+            eventPublisher,
+            catalogClient);
+
+        var responses = await service.GetByCustomerAccountIdAsync(
+            "customer-filter",
+            new OrderQueryRequest { Status = OrderStatus.Accepted });
+
+        responses.Should().ContainSingle();
+        responses[0].Id.Should().Be(acceptedOrder.Id);
+        catalogClient.Calls.Should().Be(0);
+        eventPublisher.OrderCreatedCalls.Should().Be(0);
+        eventPublisher.OrderStatusChangedCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetByCustomerAccountIdAsync_WithFromAndTo_ShouldReturnOrdersInRange()
+    {
+        var from = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 5, 22, 23, 59, 59, DateTimeKind.Utc);
+        var olderOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-range",
+            createdAt: from.AddDays(-1));
+        var inRangeOlderOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-range",
+            createdAt: from.AddDays(1));
+        var inRangeNewerOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-range",
+            createdAt: to.AddDays(-1));
+        var newerOrder = OrderTestData.OrderDocument(
+            customerAccountId: "customer-range",
+            createdAt: to.AddDays(1));
+        var service = CreateService(new InMemoryOrderRepository(
+            olderOrder,
+            inRangeOlderOrder,
+            inRangeNewerOrder,
+            newerOrder));
+
+        var responses = await service.GetByCustomerAccountIdAsync(
+            "customer-range",
+            new OrderQueryRequest { From = from, To = to });
+
+        responses.Select(order => order.Id).Should().Equal(inRangeNewerOrder.Id, inRangeOlderOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetByCustomerAccountIdAsync_WithInvalidDateRange_ShouldThrowValidationException()
+    {
+        var service = CreateService(new InMemoryOrderRepository());
+
+        var act = async () => await service.GetByCustomerAccountIdAsync(
+            "customer-invalid",
+            InvalidDateRangeQuery());
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+    }
+
+    [Fact]
     public async Task GetByRestaurantIdAsync_ShouldReturnRestaurantOrders()
     {
         var restaurantOrder = OrderTestData.OrderDocument(restaurantId: "restaurant-1");
@@ -162,6 +231,136 @@ public sealed class OrderServiceImplTests
 
         responses.Should().ContainSingle();
         responses[0].Id.Should().Be(restaurantOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetByRestaurantIdAsync_WithStatus_ShouldReturnOnlyMatchingStatus()
+    {
+        var createdOrder = OrderTestData.OrderDocument(
+            restaurantId: "restaurant-filter",
+            status: OrderStatus.Created);
+        var acceptedOrder = OrderTestData.OrderDocument(
+            restaurantId: "restaurant-filter",
+            status: OrderStatus.Accepted);
+        var service = CreateService(new InMemoryOrderRepository(createdOrder, acceptedOrder));
+
+        var responses = await service.GetByRestaurantIdAsync(
+            "restaurant-filter",
+            new OrderQueryRequest { Status = OrderStatus.Accepted });
+
+        responses.Should().ContainSingle();
+        responses[0].Id.Should().Be(acceptedOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetByRestaurantIdAsync_WithFromAndTo_ShouldReturnOrdersInRange()
+    {
+        var from = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 5, 22, 23, 59, 59, DateTimeKind.Utc);
+        var olderOrder = OrderTestData.OrderDocument(
+            restaurantId: "restaurant-range",
+            createdAt: from.AddDays(-1));
+        var inRangeOrder = OrderTestData.OrderDocument(
+            restaurantId: "restaurant-range",
+            createdAt: from.AddDays(3));
+        var newerOrder = OrderTestData.OrderDocument(
+            restaurantId: "restaurant-range",
+            createdAt: to.AddDays(1));
+        var service = CreateService(new InMemoryOrderRepository(olderOrder, inRangeOrder, newerOrder));
+
+        var responses = await service.GetByRestaurantIdAsync(
+            "restaurant-range",
+            new OrderQueryRequest { From = from, To = to });
+
+        responses.Should().ContainSingle();
+        responses[0].Id.Should().Be(inRangeOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetByRestaurantIdAsync_WithInvalidDateRange_ShouldThrowValidationException()
+    {
+        var service = CreateService(new InMemoryOrderRepository());
+
+        var act = async () => await service.GetByRestaurantIdAsync(
+            "restaurant-invalid",
+            InvalidDateRangeQuery());
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+    }
+
+    [Fact]
+    public async Task GetByBranchIdAsync_ShouldReturnOnlyBranchOrders()
+    {
+        var olderOrder = OrderTestData.OrderDocument(
+            branchId: "branch-filter",
+            createdAt: DateTime.UtcNow.AddMinutes(-10));
+        var newerOrder = OrderTestData.OrderDocument(
+            branchId: "branch-filter",
+            createdAt: DateTime.UtcNow);
+        var otherBranchOrder = OrderTestData.OrderDocument(branchId: "other-branch");
+        var service = CreateService(new InMemoryOrderRepository(olderOrder, newerOrder, otherBranchOrder));
+
+        var responses = await service.GetByBranchIdAsync(
+            "branch-filter",
+            new OrderQueryRequest());
+
+        responses.Should().HaveCount(2);
+        responses.Select(order => order.Id).Should().Equal(newerOrder.Id, olderOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetByBranchIdAsync_WithStatus_ShouldReturnOnlyMatchingStatus()
+    {
+        var createdOrder = OrderTestData.OrderDocument(
+            branchId: "branch-status",
+            status: OrderStatus.Created);
+        var acceptedOrder = OrderTestData.OrderDocument(
+            branchId: "branch-status",
+            status: OrderStatus.Accepted);
+        var service = CreateService(new InMemoryOrderRepository(createdOrder, acceptedOrder));
+
+        var responses = await service.GetByBranchIdAsync(
+            "branch-status",
+            new OrderQueryRequest { Status = OrderStatus.Accepted });
+
+        responses.Should().ContainSingle();
+        responses[0].Id.Should().Be(acceptedOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetByBranchIdAsync_WithFromAndTo_ShouldReturnOrdersInRange()
+    {
+        var from = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 5, 22, 23, 59, 59, DateTimeKind.Utc);
+        var olderOrder = OrderTestData.OrderDocument(
+            branchId: "branch-range",
+            createdAt: from.AddDays(-1));
+        var inRangeOrder = OrderTestData.OrderDocument(
+            branchId: "branch-range",
+            createdAt: from.AddDays(5));
+        var newerOrder = OrderTestData.OrderDocument(
+            branchId: "branch-range",
+            createdAt: to.AddDays(1));
+        var service = CreateService(new InMemoryOrderRepository(olderOrder, inRangeOrder, newerOrder));
+
+        var responses = await service.GetByBranchIdAsync(
+            "branch-range",
+            new OrderQueryRequest { From = from, To = to });
+
+        responses.Should().ContainSingle();
+        responses[0].Id.Should().Be(inRangeOrder.Id);
+    }
+
+    [Fact]
+    public async Task GetByBranchIdAsync_WithInvalidDateRange_ShouldThrowValidationException()
+    {
+        var service = CreateService(new InMemoryOrderRepository());
+
+        var act = async () => await service.GetByBranchIdAsync(
+            "branch-invalid",
+            InvalidDateRangeQuery());
+
+        await act.Should().ThrowAsync<OrderValidationException>();
     }
 
     [Fact]
@@ -239,9 +438,29 @@ public sealed class OrderServiceImplTests
         InMemoryOrderRepository repository,
         FakeOrderEventPublisher eventPublisher)
     {
+        return CreateService(
+            repository,
+            eventPublisher,
+            new FakeCatalogClient(OrderTestData.ValidatedOrderResponse()));
+    }
+
+    private static OrderServiceImpl CreateService(
+        InMemoryOrderRepository repository,
+        FakeOrderEventPublisher eventPublisher,
+        FakeCatalogClient catalogClient)
+    {
         return new OrderServiceImpl(
             repository,
-            new FakeCatalogClient(OrderTestData.ValidatedOrderResponse()),
+            catalogClient,
             eventPublisher);
+    }
+
+    private static OrderQueryRequest InvalidDateRangeQuery()
+    {
+        return new OrderQueryRequest
+        {
+            From = new DateTime(2026, 5, 22, 0, 0, 0, DateTimeKind.Utc),
+            To = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc)
+        };
     }
 }

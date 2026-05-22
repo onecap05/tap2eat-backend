@@ -42,9 +42,13 @@ public sealed class OrdersController : ControllerBase
     [HttpGet("customer/{customerAccountId}")]
     public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetByCustomerAccountId(
         string customerAccountId,
+        [FromQuery] OrderQueryRequest query,
         CancellationToken cancellationToken)
     {
-        var orders = await _orderService.GetByCustomerAccountIdAsync(customerAccountId, cancellationToken);
+        var orders = await _orderService.GetByCustomerAccountIdAsync(
+            customerAccountId,
+            query,
+            cancellationToken);
 
         return Ok(orders);
     }
@@ -52,9 +56,27 @@ public sealed class OrdersController : ControllerBase
     [HttpGet("restaurant/{restaurantId}")]
     public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetByRestaurantId(
         string restaurantId,
+        [FromQuery] OrderQueryRequest query,
         CancellationToken cancellationToken)
     {
-        var orders = await _orderService.GetByRestaurantIdAsync(restaurantId, cancellationToken);
+        var orders = await _orderService.GetByRestaurantIdAsync(
+            restaurantId,
+            query,
+            cancellationToken);
+
+        return Ok(orders);
+    }
+
+    [HttpGet("branch/{branchId}")]
+    public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetByBranchId(
+        string branchId,
+        [FromQuery] OrderQueryRequest query,
+        CancellationToken cancellationToken)
+    {
+        var orders = await _orderService.GetByBranchIdAsync(
+            branchId,
+            query,
+            cancellationToken);
 
         return Ok(orders);
     }

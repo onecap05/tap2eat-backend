@@ -71,6 +71,7 @@ internal static class OrderTestData
         string? id = null,
         string customerAccountId = "customer-1",
         string restaurantId = "restaurant-1",
+        string branchId = "branch-1",
         OrderStatus status = OrderStatus.Created,
         DateTime? createdAt = null)
     {
@@ -81,7 +82,7 @@ internal static class OrderTestData
             Id = id ?? ObjectId.GenerateNewId().ToString(),
             CustomerAccountId = customerAccountId,
             RestaurantId = restaurantId,
-            BranchId = "branch-1",
+            BranchId = branchId,
             Items =
             [
                 new OrderItem

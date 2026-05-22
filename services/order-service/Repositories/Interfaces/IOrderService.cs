@@ -13,8 +13,23 @@ public interface IOrderService
         string customerAccountId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<OrderResponse>> GetByCustomerAccountIdAsync(
+        string customerAccountId,
+        OrderQueryRequest query,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<OrderResponse>> GetByRestaurantIdAsync(
         string restaurantId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<OrderResponse>> GetByRestaurantIdAsync(
+        string restaurantId,
+        OrderQueryRequest query,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<OrderResponse>> GetByBranchIdAsync(
+        string branchId,
+        OrderQueryRequest query,
         CancellationToken cancellationToken = default);
 
     Task<OrderResponse> UpdateStatusAsync(

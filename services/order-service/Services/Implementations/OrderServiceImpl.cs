@@ -7,6 +7,7 @@ using OrderService.Mapping;
 using OrderService.Messaging.Publishers;
 using OrderService.Repositories.Interfaces;
 using OrderService.Services.Interfaces;
+using OrderService.Validation;
 
 namespace OrderService.Services.Implementations;
 
@@ -61,8 +62,22 @@ public sealed class OrderServiceImpl : IOrderService
         string customerAccountId,
         CancellationToken cancellationToken = default)
     {
+        return await GetByCustomerAccountIdAsync(
+            customerAccountId,
+            new OrderQueryRequest(),
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderResponse>> GetByCustomerAccountIdAsync(
+        string customerAccountId,
+        OrderQueryRequest query,
+        CancellationToken cancellationToken = default)
+    {
+        OrderQueryValidator.Validate(query);
+
         var orders = await _orderRepository.FindByCustomerAccountIdAsync(
             customerAccountId,
+            query,
             cancellationToken);
 
         return orders
@@ -74,8 +89,39 @@ public sealed class OrderServiceImpl : IOrderService
         string restaurantId,
         CancellationToken cancellationToken = default)
     {
+        return await GetByRestaurantIdAsync(
+            restaurantId,
+            new OrderQueryRequest(),
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<OrderResponse>> GetByRestaurantIdAsync(
+        string restaurantId,
+        OrderQueryRequest query,
+        CancellationToken cancellationToken = default)
+    {
+        OrderQueryValidator.Validate(query);
+
         var orders = await _orderRepository.FindByRestaurantIdAsync(
             restaurantId,
+            query,
+            cancellationToken);
+
+        return orders
+            .Select(OrderMapper.ToResponse)
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<OrderResponse>> GetByBranchIdAsync(
+        string branchId,
+        OrderQueryRequest query,
+        CancellationToken cancellationToken = default)
+    {
+        OrderQueryValidator.Validate(query);
+
+        var orders = await _orderRepository.FindByBranchIdAsync(
+            branchId,
+            query,
             cancellationToken);
 
         return orders

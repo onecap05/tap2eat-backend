@@ -39,7 +39,10 @@ public class GatewayCorsFilter implements Filter {
             httpResponse.setHeader("Access-Control-Allow-Origin", origin);
             httpResponse.setHeader("Vary", "Origin");
             httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-            httpResponse.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, Origin");
+            httpResponse.setHeader(
+                    "Access-Control-Allow-Headers",
+                    "Authorization, Content-Type, Accept, Origin, X-Simulated-Payment-Token"
+            );
             httpResponse.setHeader("Access-Control-Expose-Headers", "Authorization");
             httpResponse.setHeader("Access-Control-Max-Age", "3600");
         }

@@ -1,5 +1,6 @@
 using FinanceService.Dtos.Requests;
 using FinanceService.Dtos.Responses;
+using FinanceService.Security;
 using FinanceService.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,11 +10,17 @@ namespace FinanceService.Controllers;
 [Route("api/payments")]
 public sealed class PaymentsController : ControllerBase
 {
-    private readonly IPaymentService _paymentService;
+    private const string SimulatedPaymentTokenHeaderName = "X-Simulated-Payment-Token";
 
-    public PaymentsController(IPaymentService paymentService)
+    private readonly IPaymentService _paymentService;
+    private readonly IPaymentSimulationTokenValidator _paymentSimulationTokenValidator;
+
+    public PaymentsController(
+        IPaymentService paymentService,
+        IPaymentSimulationTokenValidator paymentSimulationTokenValidator)
     {
         _paymentService = paymentService;
+        _paymentSimulationTokenValidator = paymentSimulationTokenValidator;
     }
 
     [HttpGet("{id:guid}")]
@@ -66,6 +73,11 @@ public sealed class PaymentsController : ControllerBase
         [FromBody] ApprovePaymentRequest request,
         CancellationToken cancellationToken)
     {
+        if (!HasValidSimulationToken())
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
         var payment = await _paymentService.ApproveAsync(id, request, cancellationToken);
 
         return Ok(payment);
@@ -77,6 +89,11 @@ public sealed class PaymentsController : ControllerBase
         [FromBody] RejectPaymentRequest request,
         CancellationToken cancellationToken)
     {
+        if (!HasValidSimulationToken())
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
         var payment = await _paymentService.RejectAsync(id, request, cancellationToken);
 
         return Ok(payment);
@@ -87,8 +104,20 @@ public sealed class PaymentsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
+        if (!HasValidSimulationToken())
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
         var payment = await _paymentService.CancelAsync(id, cancellationToken);
 
         return Ok(payment);
+    }
+
+    private bool HasValidSimulationToken()
+    {
+        var token = Request.Headers[SimulatedPaymentTokenHeaderName].FirstOrDefault();
+
+        return _paymentSimulationTokenValidator.IsValid(token);
     }
 }

@@ -5,6 +5,7 @@ import com.tap2eat.notification.messaging.events.OrderStatusChangedEvent;
 import com.tap2eat.notification.messaging.events.PaymentApprovedEvent;
 import com.tap2eat.notification.messaging.events.PaymentCancelledEvent;
 import com.tap2eat.notification.messaging.events.PaymentRejectedEvent;
+import com.tap2eat.notification.realtime.IRealtimeEventPublisher;
 import com.tap2eat.notification.services.INotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,12 @@ import org.springframework.stereotype.Service;
 public class NotificationServiceImpl implements INotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationServiceImpl.class);
+
+    private final IRealtimeEventPublisher realtimeEventPublisher;
+
+    public NotificationServiceImpl(IRealtimeEventPublisher realtimeEventPublisher) {
+        this.realtimeEventPublisher = realtimeEventPublisher;
+    }
 
     @Override
     public void handleOrderCreated(OrderCreatedEvent event) {
@@ -26,6 +33,7 @@ public class NotificationServiceImpl implements INotificationService {
                 event.total(),
                 event.status()
         );
+        realtimeEventPublisher.publishOrderCreated(event);
     }
 
     @Override
@@ -38,6 +46,7 @@ public class NotificationServiceImpl implements INotificationService {
                 event.previousStatus(),
                 event.newStatus()
         );
+        realtimeEventPublisher.publishOrderStatusChanged(event);
     }
 
     @Override
@@ -50,6 +59,7 @@ public class NotificationServiceImpl implements INotificationService {
                 event.amount(),
                 event.providerReference()
         );
+        realtimeEventPublisher.publishPaymentApproved(event);
     }
 
     @Override
@@ -62,6 +72,7 @@ public class NotificationServiceImpl implements INotificationService {
                 event.amount(),
                 event.rejectionReason()
         );
+        realtimeEventPublisher.publishPaymentRejected(event);
     }
 
     @Override
@@ -74,5 +85,6 @@ public class NotificationServiceImpl implements INotificationService {
                 event.amount(),
                 event.reason()
         );
+        realtimeEventPublisher.publishPaymentCancelled(event);
     }
 }

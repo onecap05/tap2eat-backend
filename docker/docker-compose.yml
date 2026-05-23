@@ -146,6 +146,7 @@ services:
       RabbitMq__PaymentExchangeName: tap2eat.payments
       RabbitMq__PaymentExchangeType: topic
       RabbitMq__Enabled: true
+      PaymentSimulation__Token: ${PAYMENT_SIMULATION_TOKEN:-tap2eat-payment-dev-token}
     depends_on:
       - postgres
       - rabbitmq

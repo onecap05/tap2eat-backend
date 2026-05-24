@@ -1,53 +1,49 @@
 package com.tap2eat.gateway.config;
 
 import jakarta.servlet.FilterChain;
-import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
+import java.io.IOException;
+import java.util.Set;
 
-class GatewayCorsFilterTest {
+@Component
+public class GatewayCorsFilter extends OncePerRequestFilter {
 
-    private final GatewayCorsFilter filter = new GatewayCorsFilter();
+    private static final Set<String> ALLOWED_ORIGINS = Set.of(
+            "http://localhost:4200",
+            "http://127.0.0.1:4200"
+    );
 
-    @Test
-    void shouldAllowSimulatedPaymentTokenHeaderForAllowedOrigin() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/payments/payment-1/approve");
-        request.addHeader("Origin", "http://localhost:4200");
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    private static final String ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+    private static final String ALLOWED_HEADERS =
+            "Authorization, Content-Type, Accept, Origin, X-Simulated-Payment-Token";
 
-        filter.doFilter(request, response, mock(FilterChain.class));
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+        String origin = request.getHeader("Origin");
 
-        assertThat(response.getHeader("Access-Control-Allow-Headers"))
-                .contains("Authorization")
-                .contains("Content-Type")
-                .contains("Accept")
-                .contains("Origin")
-                .contains("X-Simulated-Payment-Token");
-    }
+        if (ALLOWED_ORIGINS.contains(origin)) {
+            response.setHeader("Access-Control-Allow-Origin", origin);
+            response.setHeader("Vary", "Origin");
+            response.setHeader("Access-Control-Allow-Credentials", "true");
+            response.setHeader("Access-Control-Allow-Methods", ALLOWED_METHODS);
+            response.setHeader("Access-Control-Allow-Headers", ALLOWED_HEADERS);
+            response.setHeader("Access-Control-Max-Age", "3600");
+        }
 
-    @Test
-    void shouldAllowCorsPreflightForWebSocketSockJsInfoEndpoint() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/ws/info");
-        request.addHeader("Origin", "http://localhost:4200");
-        MockHttpServletResponse response = new MockHttpServletResponse();
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
 
-        filter.doFilter(request, response, mock(FilterChain.class));
-
-        assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(response.getHeader("Access-Control-Allow-Origin"))
-                .isEqualTo("http://localhost:4200");
-        assertThat(response.getHeader("Access-Control-Allow-Methods"))
-                .contains("GET")
-                .contains("POST")
-                .contains("OPTIONS");
-        assertThat(response.getHeader("Access-Control-Allow-Headers"))
-                .contains("Authorization")
-                .contains("Content-Type")
-                .contains("Accept")
-                .contains("Origin")
-                .contains("X-Simulated-Payment-Token");
+        filterChain.doFilter(request, response);
     }
 }

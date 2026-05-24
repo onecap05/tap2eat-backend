@@ -1,57 +1,53 @@
 package com.tap2eat.gateway.config;
 
-import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 
-import java.io.IOException;
-import java.util.Set;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
-@Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
-public class GatewayCorsFilter implements Filter {
+class GatewayCorsFilterTest {
 
-    private static final Set<String> ALLOWED_ORIGINS = Set.of(
-            "http://localhost:4200",
-            "http://127.0.0.1:4200"
-    );
+    private final GatewayCorsFilter filter = new GatewayCorsFilter();
 
-    @Override
-    public void doFilter(
-            ServletRequest request,
-            ServletResponse response,
-            FilterChain chain
-    ) throws IOException, ServletException {
+    @Test
+    void shouldAllowSimulatedPaymentTokenHeaderForAllowedOrigin() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/payments/payment-1/approve");
+        request.addHeader("Origin", "http://localhost:4200");
+        MockHttpServletResponse response = new MockHttpServletResponse();
 
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
+        filter.doFilter(request, response, mock(FilterChain.class));
 
-        String origin = httpRequest.getHeader("Origin");
+        assertThat(response.getHeader("Access-Control-Allow-Headers"))
+                .contains("Authorization")
+                .contains("Content-Type")
+                .contains("Accept")
+                .contains("Origin")
+                .contains("X-Simulated-Payment-Token");
+    }
 
-        if (origin != null && ALLOWED_ORIGINS.contains(origin)) {
-            httpResponse.setHeader("Access-Control-Allow-Origin", origin);
-            httpResponse.setHeader("Vary", "Origin");
-            httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-            httpResponse.setHeader(
-                    "Access-Control-Allow-Headers",
-                    "Authorization, Content-Type, Accept, Origin, X-Simulated-Payment-Token"
-            );
-            httpResponse.setHeader("Access-Control-Expose-Headers", "Authorization");
-            httpResponse.setHeader("Access-Control-Max-Age", "3600");
-        }
+    @Test
+    void shouldAllowCorsPreflightForWebSocketSockJsInfoEndpoint() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/ws/info");
+        request.addHeader("Origin", "http://localhost:4200");
+        MockHttpServletResponse response = new MockHttpServletResponse();
 
-        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
-            httpResponse.setStatus(HttpServletResponse.SC_OK);
-            return;
-        }
+        filter.doFilter(request, response, mock(FilterChain.class));
 
-        chain.doFilter(request, response);
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(response.getHeader("Access-Control-Allow-Origin"))
+                .isEqualTo("http://localhost:4200");
+        assertThat(response.getHeader("Access-Control-Allow-Methods"))
+                .contains("GET")
+                .contains("POST")
+                .contains("OPTIONS");
+        assertThat(response.getHeader("Access-Control-Allow-Headers"))
+                .contains("Authorization")
+                .contains("Content-Type")
+                .contains("Accept")
+                .contains("Origin")
+                .contains("X-Simulated-Payment-Token");
     }
 }

@@ -26,6 +26,9 @@ builder.Services.Configure<RabbitMqSettings>(
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection(JwtSettings.SectionName));
 
+builder.Services.Configure<InternalServiceSettings>(
+    builder.Configuration.GetSection(InternalServiceSettings.SectionName));
+
 var jwtSettings = builder.Configuration
     .GetSection(JwtSettings.SectionName)
     .Get<JwtSettings>() ?? new JwtSettings();

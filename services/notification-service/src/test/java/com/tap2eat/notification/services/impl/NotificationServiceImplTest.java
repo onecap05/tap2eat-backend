@@ -5,15 +5,26 @@ import com.tap2eat.notification.messaging.events.OrderStatusChangedEvent;
 import com.tap2eat.notification.messaging.events.PaymentApprovedEvent;
 import com.tap2eat.notification.messaging.events.PaymentCancelledEvent;
 import com.tap2eat.notification.messaging.events.PaymentRejectedEvent;
+import com.tap2eat.notification.realtime.IRealtimeEventPublisher;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class NotificationServiceImplTest {
 
-    private final NotificationServiceImpl notificationService = new NotificationServiceImpl();
+    private IRealtimeEventPublisher realtimeEventPublisher;
+    private NotificationServiceImpl notificationService;
+
+    @BeforeEach
+    void setUp() {
+        realtimeEventPublisher = mock(IRealtimeEventPublisher.class);
+        notificationService = new NotificationServiceImpl(realtimeEventPublisher);
+    }
 
     @Test
     void handleOrderCreated_shouldNotThrow() {
@@ -32,6 +43,7 @@ class NotificationServiceImplTest {
         );
 
         assertDoesNotThrow(() -> notificationService.handleOrderCreated(event));
+        verify(realtimeEventPublisher).publishOrderCreated(event);
     }
 
     @Test
@@ -49,6 +61,7 @@ class NotificationServiceImplTest {
         );
 
         assertDoesNotThrow(() -> notificationService.handleOrderStatusChanged(event));
+        verify(realtimeEventPublisher).publishOrderStatusChanged(event);
     }
 
     @Test
@@ -70,6 +83,7 @@ class NotificationServiceImplTest {
         );
 
         assertDoesNotThrow(() -> notificationService.handlePaymentApproved(event));
+        verify(realtimeEventPublisher).publishPaymentApproved(event);
     }
 
     @Test
@@ -90,6 +104,7 @@ class NotificationServiceImplTest {
         );
 
         assertDoesNotThrow(() -> notificationService.handlePaymentRejected(event));
+        verify(realtimeEventPublisher).publishPaymentRejected(event);
     }
 
     @Test
@@ -110,5 +125,6 @@ class NotificationServiceImplTest {
         );
 
         assertDoesNotThrow(() -> notificationService.handlePaymentCancelled(event));
+        verify(realtimeEventPublisher).publishPaymentCancelled(event);
     }
 }

@@ -34,8 +34,8 @@ services:
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
     depends_on:
       - postgres
-    ports:
-      - "8081:8081"
+    expose:
+      - "8081"
     restart: unless-stopped
     networks:
       - tap2eat-network
@@ -62,8 +62,8 @@ services:
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-tap2eat-internal-dev-token}
     depends_on:
       - mongodb
-    ports:
-      - "8082:8082"
+    expose:
+      - "8082"
     restart: unless-stopped
     networks:
       - tap2eat-network
@@ -94,9 +94,9 @@ services:
       - ../secrets/google/tokens:/run/secrets/google/tokens
     depends_on:
       - rabbitmq
-    ports:
-      - "${NOTIFICATION_HTTP_PORT}:${NOTIFICATION_HTTP_PORT}"
-      - "${NOTIFICATION_GRPC_PORT}:${NOTIFICATION_GRPC_PORT}"
+    expose:
+      - "${NOTIFICATION_HTTP_PORT}"
+      - "${NOTIFICATION_GRPC_PORT}"
     restart: unless-stopped
     networks:
       - tap2eat-network
@@ -116,12 +116,15 @@ services:
       RabbitMq__Port: 5672
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+      Jwt__PublicKeyPath: /run/secrets/jwt/public_key.pem
+    volumes:
+      - ../services/api-gateway/src/main/resources/keys/public_key.pem:/run/secrets/jwt/public_key.pem:ro
     depends_on:
       - mongodb
       - catalog-service
       - rabbitmq
-    ports:
-      - "8085:8085"
+    expose:
+      - "8085"
     restart: unless-stopped
     networks:
       - tap2eat-network
@@ -147,11 +150,20 @@ services:
       RabbitMq__PaymentExchangeName: tap2eat.payments
       RabbitMq__PaymentExchangeType: topic
       RabbitMq__Enabled: true
+      PaymentSimulation__Token: ${PAYMENT_SIMULATION_TOKEN:-tap2eat-payment-dev-token}
+      PayPal__Mode: ${PAYPAL_MODE:-sandbox}
+      PayPal__BaseUrl: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+      PayPal__ClientId: ${PAYPAL_CLIENT_ID}
+      PayPal__ClientSecret: ${PAYPAL_CLIENT_SECRET}
+      PayPal__Currency: ${PAYPAL_CURRENCY:-MXN}
+      Jwt__PublicKeyPath: /run/secrets/jwt/public_key.pem
+    volumes:
+      - ../services/api-gateway/src/main/resources/keys/public_key.pem:/run/secrets/jwt/public_key.pem:ro
     depends_on:
       - postgres
       - rabbitmq
-    ports:
-      - "8083:8083"
+    expose:
+      - "8083"
     restart: unless-stopped
     networks:
       - tap2eat-network
@@ -173,8 +185,8 @@ services:
     depends_on:
       - neo4j
       - rabbitmq
-    ports:
-      - "8086:8086"
+    expose:
+      - "8086"
     restart: unless-stopped
     networks:
       - tap2eat-network

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderService.Dtos.Requests;
 using OrderService.Dtos.Responses;
@@ -6,6 +7,7 @@ using OrderService.Services.Interfaces;
 namespace OrderService.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/orders")]
 public sealed class OrdersController : ControllerBase
 {

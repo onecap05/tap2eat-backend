@@ -15,6 +15,8 @@ namespace FinanceService.Tests.Integration;
 
 public sealed class PaymentsControllerIntegrationTests : IClassFixture<FinanceApiTestFixture>, IAsyncLifetime
 {
+    private const string SimulationToken = "tap2eat-payment-dev-token";
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
@@ -66,7 +68,7 @@ public sealed class PaymentsControllerIntegrationTests : IClassFixture<FinanceAp
     {
         var payment = await CreatePaymentAsync("order-approve");
 
-        var response = await _fixture.Client.PatchAsJsonAsync(
+        var response = await PatchSimulationAsJsonAsync(
             $"/api/payments/{payment.Id}/approve",
             new ApprovePaymentRequest { ProviderReference = "manual-ref" });
 
@@ -81,11 +83,23 @@ public sealed class PaymentsControllerIntegrationTests : IClassFixture<FinanceAp
     }
 
     [Fact]
+    public async Task Approve_withoutSimulationToken_returnsForbidden()
+    {
+        var payment = await CreatePaymentAsync("order-approve-forbidden");
+
+        var response = await _fixture.Client.PatchAsJsonAsync(
+            $"/api/payments/{payment.Id}/approve",
+            new ApprovePaymentRequest());
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task Reject_persistsRejectedInPostgreSql()
     {
         var payment = await CreatePaymentAsync("order-reject");
 
-        var response = await _fixture.Client.PatchAsJsonAsync(
+        var response = await PatchSimulationAsJsonAsync(
             $"/api/payments/{payment.Id}/reject",
             new RejectPaymentRequest { RejectionReason = "Declined" });
 
@@ -100,9 +114,7 @@ public sealed class PaymentsControllerIntegrationTests : IClassFixture<FinanceAp
     {
         var payment = await CreatePaymentAsync("order-cancel");
 
-        var response = await _fixture.Client.PatchAsync(
-            $"/api/payments/{payment.Id}/cancel",
-            content: null);
+        var response = await PatchSimulationAsync($"/api/payments/{payment.Id}/cancel");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<PaymentResponse>(JsonOptions);
@@ -122,13 +134,11 @@ public sealed class PaymentsControllerIntegrationTests : IClassFixture<FinanceAp
     {
         var payment = await CreatePaymentAsync("order-conflict");
 
-        await _fixture.Client.PatchAsJsonAsync(
+        await PatchSimulationAsJsonAsync(
             $"/api/payments/{payment.Id}/approve",
             new ApprovePaymentRequest());
 
-        var response = await _fixture.Client.PatchAsync(
-            $"/api/payments/{payment.Id}/cancel",
-            content: null);
+        var response = await PatchSimulationAsync($"/api/payments/{payment.Id}/cancel");
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -140,5 +150,26 @@ public sealed class PaymentsControllerIntegrationTests : IClassFixture<FinanceAp
 
         return await paymentService.CreatePendingPaymentFromOrderAsync(
             PaymentTestData.OrderCreatedEvent(orderId));
+    }
+
+    private Task<HttpResponseMessage> PatchSimulationAsync(string requestUri)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Patch, requestUri);
+        request.Headers.Add("X-Simulated-Payment-Token", SimulationToken);
+
+        return _fixture.Client.SendAsync(request);
+    }
+
+    private Task<HttpResponseMessage> PatchSimulationAsJsonAsync<TRequest>(
+        string requestUri,
+        TRequest requestBody)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Patch, requestUri)
+        {
+            Content = JsonContent.Create(requestBody)
+        };
+        request.Headers.Add("X-Simulated-Payment-Token", SimulationToken);
+
+        return _fixture.Client.SendAsync(request);
     }
 }

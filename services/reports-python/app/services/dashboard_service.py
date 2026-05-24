@@ -23,17 +23,24 @@ class DashboardService:
         self,
         restaurant_id: str,
         from_date: str | None = None,
-        to_date: str | None = None
+        to_date: str | None = None,
+        authorization_header: str | None = None
     ) -> OwnerDashboardResponse:
         orders, products, categories = await asyncio.gather(
-            self.order_client.get_orders_by_restaurant(
-                restaurant_id=restaurant_id,
-                from_date=from_date,
-                to_date=to_date
-            ),
-            self.catalog_client.get_products_by_restaurant(restaurant_id),
-            self.catalog_client.get_categories_by_restaurant(restaurant_id)
+        self.order_client.get_orders_by_restaurant(
+            restaurant_id=restaurant_id,
+            from_date=from_date,
+            to_date=to_date
+        ),
+        self.catalog_client.get_products_by_restaurant(
+            restaurant_id=restaurant_id,
+            authorization_header=authorization_header
+        ),
+        self.catalog_client.get_categories_by_restaurant(
+            restaurant_id=restaurant_id,
+            authorization_header=authorization_header
         )
+    )
 
         return OwnerDashboardResponse(
             restaurant_id=restaurant_id,
@@ -58,13 +65,13 @@ class DashboardService:
         ]
 
         total_sales = sum(
-            self._to_decimal(order.get("total"))
-            for order in sales_orders
+            (self._to_decimal(order.get("total")) for order in sales_orders),
+            Decimal("0")
         )
 
         delivered_sales = sum(
-            self._to_decimal(order.get("total"))
-            for order in delivered_orders
+            (self._to_decimal(order.get("total")) for order in delivered_orders),
+            Decimal("0")
         )
 
         sales_order_count = len(sales_orders)
@@ -81,14 +88,12 @@ class DashboardService:
             total_sales=self._to_float(total_sales),
             delivered_sales=self._to_float(delivered_sales),
             average_ticket=self._to_float(average_ticket),
-
             created_orders=status_counter.get("CREATED", 0),
             accepted_orders=status_counter.get("ACCEPTED", 0),
             preparing_orders=status_counter.get("PREPARING", 0),
             ready_orders=status_counter.get("READY", 0),
             delivered_orders=status_counter.get("DELIVERED", 0),
             cancelled_orders=status_counter.get("CANCELLED", 0),
-
             orders_by_status=[
                 StatusMetric(status=status, total=total)
                 for status, total in status_counter.items()

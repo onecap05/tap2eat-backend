@@ -6,3 +6,4 @@ public sealed class JwtSettings
 
     public string PublicKeyPath { get; set; } = "../api-gateway/src/main/resources/keys/public_key.pem";
 }
+

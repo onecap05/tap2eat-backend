@@ -117,6 +117,7 @@ services:
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
       Jwt__PublicKeyPath: /run/secrets/jwt/public_key.pem
+      InternalService__Token: ${INTERNAL_SERVICE_TOKEN:-tap2eat-internal-dev-token}
     volumes:
       - ../services/api-gateway/src/main/resources/keys/public_key.pem:/run/secrets/jwt/public_key.pem:ro
     depends_on:
@@ -197,8 +198,8 @@ services:
       dockerfile: services/reports-python/Dockerfile
     container_name: tap2eat-reports-python
     environment:
-      ORDER_SERVICE_BASE_URL: http://order-service:8085
-      CATALOG_SERVICE_BASE_URL: http://catalog-service:8082
+      ORDER_SERVICE_BASE_URL: "http://order-service:8085"
+      CATALOG_SERVICE_BASE_URL: "http://catalog-service:8082"
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-tap2eat-internal-dev-token}
       REQUEST_TIMEOUT_SECONDS: 10
     depends_on:
@@ -209,7 +210,6 @@ services:
     restart: unless-stopped
     networks:
       - tap2eat-network
-  
 
   rabbitmq:
     image: rabbitmq:3-management

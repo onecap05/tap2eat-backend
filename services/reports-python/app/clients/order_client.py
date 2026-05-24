@@ -24,10 +24,18 @@ class OrderClient:
         if to_date:
             params["to"] = to_date
 
-        url = f"{self.base_url}/api/orders/restaurant/{restaurant_id}"
+        headers = {
+            "X-Internal-Service-Token": settings.internal_service_token
+        }
+
+        url = f"{self.base_url}/api/internal/orders/restaurant/{restaurant_id}"
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(url, params=params)
+            response = await client.get(
+                url,
+                params=params,
+                headers=headers
+            )
             response.raise_for_status()
 
         body = response.json()

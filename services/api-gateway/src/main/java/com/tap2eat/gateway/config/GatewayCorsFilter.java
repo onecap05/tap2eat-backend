@@ -30,7 +30,7 @@ public class GatewayCorsFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         String origin = request.getHeader("Origin");
 
-        if (ALLOWED_ORIGINS.contains(origin)) {
+        if (origin != null && ALLOWED_ORIGINS.contains(origin)) {
             response.setHeader("Access-Control-Allow-Origin", origin);
             response.setHeader("Vary", "Origin");
             response.setHeader("Access-Control-Allow-Credentials", "true");

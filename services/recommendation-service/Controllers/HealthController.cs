@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace RecommendationService.Controllers;
 
 [ApiController]
+[Microsoft.AspNetCore.Authorization.AllowAnonymous]
 [Route("api/recommendations")]
 public class HealthController : ControllerBase
 {

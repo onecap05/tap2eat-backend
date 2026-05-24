@@ -1,33 +1,48 @@
-namespace OrderService.Messaging.Events;
+using System.Text.Json.Serialization;
+
+namespace RecommendationService.Messaging.Events;
 
 public sealed class OrderStatusChangedEvent
 {
-    public Guid EventId { get; set; } = Guid.NewGuid();
+    [JsonPropertyName("EventId")]
+    public Guid EventId { get; set; }
 
+    [JsonPropertyName("EventType")]
     public string EventType { get; set; } = "order.status.changed";
 
+    [JsonPropertyName("OrderId")]
     public string OrderId { get; set; } = string.Empty;
 
+    [JsonPropertyName("CustomerAccountId")]
     public string CustomerAccountId { get; set; } = string.Empty;
 
+    [JsonPropertyName("RestaurantId")]
     public string RestaurantId { get; set; } = string.Empty;
 
+    [JsonPropertyName("BranchId")]
     public string BranchId { get; set; } = string.Empty;
 
+    [JsonPropertyName("PreviousStatus")]
     public string PreviousStatus { get; set; } = string.Empty;
 
+    [JsonPropertyName("NewStatus")]
     public string NewStatus { get; set; } = string.Empty;
 
+    [JsonPropertyName("Items")]
     public List<OrderStatusChangedItemEvent> Items { get; set; } = [];
 
+    [JsonPropertyName("OccurredAt")]
     public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class OrderStatusChangedItemEvent
 {
+    [JsonPropertyName("ProductId")]
     public string ProductId { get; set; } = string.Empty;
 
+    [JsonPropertyName("Quantity")]
     public int Quantity { get; set; }
 
+    [JsonPropertyName("ProductNameSnapshot")]
     public string? ProductNameSnapshot { get; set; }
 }

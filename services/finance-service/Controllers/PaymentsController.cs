@@ -13,13 +13,16 @@ public sealed class PaymentsController : ControllerBase
     private const string SimulatedPaymentTokenHeaderName = "X-Simulated-Payment-Token";
 
     private readonly IPaymentService _paymentService;
+    private readonly IPayPalPaymentService _payPalPaymentService;
     private readonly IPaymentSimulationTokenValidator _paymentSimulationTokenValidator;
 
     public PaymentsController(
         IPaymentService paymentService,
+        IPayPalPaymentService payPalPaymentService,
         IPaymentSimulationTokenValidator paymentSimulationTokenValidator)
     {
         _paymentService = paymentService;
+        _payPalPaymentService = payPalPaymentService;
         _paymentSimulationTokenValidator = paymentSimulationTokenValidator;
     }
 
@@ -112,6 +115,31 @@ public sealed class PaymentsController : ControllerBase
         var payment = await _paymentService.CancelAsync(id, cancellationToken);
 
         return Ok(payment);
+    }
+
+    [HttpPost("{paymentId:guid}/paypal/create-order")]
+    public async Task<ActionResult<PayPalOrderResponse>> CreatePayPalOrder(
+        Guid paymentId,
+        [FromBody] CreatePayPalOrderRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _payPalPaymentService.CreateOrderAsync(paymentId, cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpPost("{paymentId:guid}/paypal/capture")]
+    public async Task<ActionResult<PayPalCaptureResponse>> CapturePayPalOrder(
+        Guid paymentId,
+        [FromBody] CapturePayPalOrderRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _payPalPaymentService.CaptureOrderAsync(
+            paymentId,
+            request,
+            cancellationToken);
+
+        return Ok(response);
     }
 
     private bool HasValidSimulationToken()

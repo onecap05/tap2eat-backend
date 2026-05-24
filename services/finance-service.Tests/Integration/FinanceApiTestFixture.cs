@@ -1,9 +1,13 @@
 using FinanceService.Data;
+using FinanceService.Messaging.Publishers;
+using FinanceService.Services.Interfaces;
+using FinanceService.Tests.Fakes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 
 namespace FinanceService.Tests.Integration;
@@ -23,6 +27,12 @@ public sealed class FinanceApiTestFixture : IAsyncLifetime
 
     public IServiceProvider Services =>
         _factory?.Services ?? throw new InvalidOperationException("Factory is not initialized.");
+
+    public FakePayPalClient PayPalClient =>
+        Services.GetRequiredService<FakePayPalClient>();
+
+    public FakePaymentEventPublisher PaymentEventPublisher =>
+        Services.GetRequiredService<FakePaymentEventPublisher>();
 
     public async Task InitializeAsync()
     {
@@ -78,8 +88,25 @@ public sealed class FinanceApiTestFixture : IAsyncLifetime
                     ["RabbitMq:OrderQueueName"] = "tap2eat.finance.orders",
                     ["RabbitMq:OrderRoutingKey"] = "order.#",
                     ["RabbitMq:PaymentExchangeName"] = "tap2eat.payments",
-                    ["RabbitMq:PaymentExchangeType"] = "topic"
+                    ["RabbitMq:PaymentExchangeType"] = "topic",
+                    ["PayPal:Mode"] = "sandbox",
+                    ["PayPal:BaseUrl"] = "https://api-m.sandbox.paypal.com",
+                    ["PayPal:ClientId"] = "",
+                    ["PayPal:ClientSecret"] = "",
+                    ["PayPal:Currency"] = "MXN"
                 });
+            });
+
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IPayPalClient>();
+                services.RemoveAll<IPaymentEventPublisher>();
+                services.AddSingleton<FakePayPalClient>();
+                services.AddSingleton<IPayPalClient>(provider =>
+                    provider.GetRequiredService<FakePayPalClient>());
+                services.AddSingleton<FakePaymentEventPublisher>();
+                services.AddSingleton<IPaymentEventPublisher>(provider =>
+                    provider.GetRequiredService<FakePaymentEventPublisher>());
             });
         }
     }

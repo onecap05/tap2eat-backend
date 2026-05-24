@@ -23,6 +23,9 @@ builder.Services.Configure<RabbitMqSettings>(
 builder.Services.Configure<PaymentSimulationSettings>(
     builder.Configuration.GetSection(PaymentSimulationSettings.SectionName));
 
+builder.Services.Configure<PayPalSettings>(
+    builder.Configuration.GetSection(PayPalSettings.SectionName));
+
 builder.Services.AddDbContext<FinanceDbContext>((serviceProvider, options) =>
 {
     var settings = serviceProvider
@@ -39,9 +42,11 @@ builder.Services.AddDbContext<FinanceDbContext>((serviceProvider, options) =>
 
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
+builder.Services.AddScoped<IPayPalPaymentService, PayPalPaymentService>();
 builder.Services.AddScoped<IOrderEventProcessor, OrderEventProcessorImpl>();
 builder.Services.AddScoped<IPaymentEventPublisher, RabbitMqPaymentEventPublisherImpl>();
 builder.Services.AddSingleton<IPaymentSimulationTokenValidator, PaymentSimulationTokenValidator>();
+builder.Services.AddHttpClient<IPayPalClient, PayPalClient>();
 
 var rabbitMqSettings = builder.Configuration
     .GetSection(RabbitMqSettings.SectionName)

@@ -50,4 +50,15 @@ public sealed class FakePaymentEventPublisher : IPaymentEventPublisher
 
         return Task.CompletedTask;
     }
+
+    public void Reset()
+    {
+        PaymentApprovedCalls = 0;
+        PaymentRejectedCalls = 0;
+        PaymentCancelledCalls = 0;
+        LastApprovedPayment = null;
+        LastRejectedPayment = null;
+        LastCancelledPayment = null;
+        LastCancellationReason = null;
+    }
 }

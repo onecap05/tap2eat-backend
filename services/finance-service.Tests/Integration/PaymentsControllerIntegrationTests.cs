@@ -83,6 +83,18 @@ public sealed class PaymentsControllerIntegrationTests : IClassFixture<FinanceAp
     }
 
     [Fact]
+    public async Task Approve_withoutSimulationToken_returnsForbidden()
+    {
+        var payment = await CreatePaymentAsync("order-approve-forbidden");
+
+        var response = await _fixture.Client.PatchAsJsonAsync(
+            $"/api/payments/{payment.Id}/approve",
+            new ApprovePaymentRequest());
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task Reject_persistsRejectedInPostgreSql()
     {
         var payment = await CreatePaymentAsync("order-reject");

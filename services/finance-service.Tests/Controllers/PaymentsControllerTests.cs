@@ -14,6 +14,7 @@ namespace FinanceService.Tests.Controllers;
 public sealed class PaymentsControllerTests
 {
     private readonly Mock<IPaymentService> _paymentService = new();
+    private readonly Mock<IPayPalPaymentService> _payPalPaymentService = new();
     private readonly Mock<IPaymentSimulationTokenValidator> _tokenValidator = new();
 
     [Fact]
@@ -185,6 +186,60 @@ public sealed class PaymentsControllerTests
             .Which.Value.Should().Be(expectedPayment);
     }
 
+    [Fact]
+    public async Task CreatePayPalOrder_withPaymentId_returnsOk()
+    {
+        var paymentId = Guid.NewGuid();
+        var expectedResponse = new PayPalOrderResponse
+        {
+            PaymentId = paymentId,
+            PaypalOrderId = "PAYPAL-ORDER-1",
+            Status = PaymentStatus.Pending.ToString(),
+            Amount = 150.75m,
+            Currency = "MXN"
+        };
+        _payPalPaymentService
+            .Setup(service => service.CreateOrderAsync(paymentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResponse);
+
+        var controller = CreateController();
+
+        var result = await controller.CreatePayPalOrder(
+            paymentId,
+            new CreatePayPalOrderRequest(),
+            CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().Be(expectedResponse);
+        _tokenValidator.Verify(validator => validator.IsValid(It.IsAny<string?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CapturePayPalOrder_withPaymentId_returnsOk()
+    {
+        var paymentId = Guid.NewGuid();
+        var request = new CapturePayPalOrderRequest { PaypalOrderId = "PAYPAL-ORDER-1" };
+        var expectedResponse = new PayPalCaptureResponse
+        {
+            PaymentId = paymentId,
+            PaypalOrderId = "PAYPAL-ORDER-1",
+            CaptureId = "CAPTURE-1",
+            PaymentStatus = PaymentStatus.Approved,
+            ProviderReference = "CAPTURE-1"
+        };
+        _payPalPaymentService
+            .Setup(service => service.CaptureOrderAsync(paymentId, request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedResponse);
+
+        var controller = CreateController();
+
+        var result = await controller.CapturePayPalOrder(paymentId, request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().Be(expectedResponse);
+        _tokenValidator.Verify(validator => validator.IsValid(It.IsAny<string?>()), Times.Never);
+    }
+
     private static PaymentResponse Response(Guid id, PaymentStatus status)
     {
         return new PaymentResponse
@@ -211,7 +266,10 @@ public sealed class PaymentsControllerTests
             httpContext.Request.Headers["X-Simulated-Payment-Token"] = simulationToken;
         }
 
-        return new PaymentsController(_paymentService.Object, _tokenValidator.Object)
+        return new PaymentsController(
+            _paymentService.Object,
+            _payPalPaymentService.Object,
+            _tokenValidator.Object)
         {
             ControllerContext = new ControllerContext
             {

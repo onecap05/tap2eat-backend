@@ -147,6 +147,11 @@ services:
       RabbitMq__PaymentExchangeType: topic
       RabbitMq__Enabled: true
       PaymentSimulation__Token: ${PAYMENT_SIMULATION_TOKEN:-tap2eat-payment-dev-token}
+      PayPal__Mode: ${PAYPAL_MODE:-sandbox}
+      PayPal__BaseUrl: ${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+      PayPal__ClientId: ${PAYPAL_CLIENT_ID}
+      PayPal__ClientSecret: ${PAYPAL_CLIENT_SECRET}
+      PayPal__Currency: ${PAYPAL_CURRENCY:-MXN}
     depends_on:
       - postgres
       - rabbitmq

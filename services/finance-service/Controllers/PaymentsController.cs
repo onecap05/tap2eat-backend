@@ -2,11 +2,13 @@ using FinanceService.Dtos.Requests;
 using FinanceService.Dtos.Responses;
 using FinanceService.Security;
 using FinanceService.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FinanceService.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/payments")]
 public sealed class PaymentsController : ControllerBase
 {

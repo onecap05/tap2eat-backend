@@ -2,6 +2,7 @@ using FinanceService.Data;
 using FinanceService.Messaging.Publishers;
 using FinanceService.Services.Interfaces;
 using FinanceService.Tests.Fakes;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -99,6 +100,15 @@ public sealed class FinanceApiTestFixture : IAsyncLifetime
 
             builder.ConfigureServices(services =>
             {
+                services.AddAuthentication(options =>
+                    {
+                        options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+                        options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+                    })
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                        TestAuthHandler.SchemeName,
+                        _ => { });
+
                 services.RemoveAll<IPayPalClient>();
                 services.RemoveAll<IPaymentEventPublisher>();
                 services.AddSingleton<FakePayPalClient>();

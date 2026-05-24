@@ -181,9 +181,19 @@ services:
       RabbitMq__Port: 5672
       RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-tap2eat}
       RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-tap2eat}
+      RabbitMq__ExchangeName: tap2eat.orders
+      RabbitMq__ExchangeType: topic
+      RabbitMq__QueueName: tap2eat.recommendations.orders
+      RabbitMq__RoutingKey: order.status.changed
+      RabbitMq__Enabled: true
+      ExternalServices__CatalogServiceBaseUrl: "http://catalog-service:8082"
+      Jwt__PublicKeyPath: /run/secrets/jwt/public_key.pem
+    volumes:
+      - ../services/api-gateway/src/main/resources/keys/public_key.pem:/run/secrets/jwt/public_key.pem:ro
     depends_on:
       - neo4j
       - rabbitmq
+      - catalog-service
     expose:
       - "8086"
     restart: unless-stopped

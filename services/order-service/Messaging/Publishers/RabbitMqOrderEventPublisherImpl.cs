@@ -45,17 +45,37 @@ public sealed class RabbitMqOrderEventPublisherImpl : IOrderEventPublisher
         string previousStatus,
         CancellationToken cancellationToken = default)
     {
-        var message = new OrderStatusChangedEvent
+        var message = CreateOrderStatusChangedEvent(order, previousStatus);
+
+        await PublishAsync("order.status.changed", message, cancellationToken);
+    }
+
+    public static OrderStatusChangedEvent CreateOrderStatusChangedEvent(
+        OrderResponse order,
+        string previousStatus)
+    {
+        var newStatus = order.Status.ToString();
+
+        return new OrderStatusChangedEvent
         {
             OrderId = order.Id,
             CustomerAccountId = order.CustomerAccountId,
             RestaurantId = order.RestaurantId,
             BranchId = order.BranchId,
             PreviousStatus = previousStatus,
-            NewStatus = order.Status.ToString()
+            NewStatus = newStatus,
+            Items = string.Equals(newStatus, "Delivered", StringComparison.OrdinalIgnoreCase)
+                ? order.Items
+                    .Where(item => !string.IsNullOrWhiteSpace(item.ProductId))
+                    .Select(item => new OrderStatusChangedItemEvent
+                    {
+                        ProductId = item.ProductId,
+                        Quantity = item.Quantity,
+                        ProductNameSnapshot = item.ProductNameSnapshot
+                    })
+                    .ToList()
+                : []
         };
-
-        await PublishAsync("order.status.changed", message, cancellationToken);
     }
 
     private async Task PublishAsync<T>(

@@ -10,5 +10,6 @@
   </Folder>
   <Folder Name="/services/recommendation-service/">
     <Project Path="services/recommendation-service/RecommendationService.csproj" />
+    <Project Path="services/recommendation-service.Tests/RecommendationService.Tests.csproj" />
   </Folder>
 </Solution>

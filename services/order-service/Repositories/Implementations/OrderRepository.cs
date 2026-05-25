@@ -43,6 +43,20 @@ public sealed class OrderRepository : IOrderRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<OrderDocument?> FindByPublicTrackingCodeAsync(
+        string publicTrackingCode,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(publicTrackingCode))
+        {
+            return null;
+        }
+
+        return await _orders
+            .Find(order => order.PublicTrackingCode == publicTrackingCode)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<OrderDocument>> FindByCustomerAccountIdAsync(
         string customerAccountId,
         CancellationToken cancellationToken = default)

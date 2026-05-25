@@ -12,6 +12,8 @@ public sealed class OrderResponse
 
     public string BranchId { get; set; } = string.Empty;
 
+    public string? PublicTrackingCode { get; set; }
+
     public List<OrderItemResponse> Items { get; set; } = [];
 
     public decimal Subtotal { get; set; }

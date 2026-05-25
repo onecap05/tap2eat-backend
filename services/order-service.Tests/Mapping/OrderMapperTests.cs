@@ -44,6 +44,18 @@ public sealed class OrderMapperTests
     }
 
     [Fact]
+    public void ToDocument_ShouldGeneratePublicTrackingCode()
+    {
+        var request = OrderTestData.CreateOrderRequest();
+        var validatedOrder = OrderTestData.ValidatedOrderResponse();
+
+        var document = OrderMapper.ToDocument(request, validatedOrder);
+
+        document.PublicTrackingCode.Should().NotBeNullOrWhiteSpace();
+        document.PublicTrackingCode.Should().HaveLength(32);
+    }
+
+    [Fact]
     public void ToDocument_ShouldMapValidatedCatalogSnapshot()
     {
         var request = OrderTestData.CreateOrderRequest();
@@ -70,5 +82,29 @@ public sealed class OrderMapperTests
         var response = OrderMapper.ToResponse(document);
 
         response.Status.Should().Be(OrderStatus.Accepted);
+    }
+
+    [Fact]
+    public void ToResponse_ShouldMapPublicTrackingCode()
+    {
+        var document = OrderTestData.OrderDocument(publicTrackingCode: "track-code-1");
+
+        var response = OrderMapper.ToResponse(document);
+
+        response.PublicTrackingCode.Should().Be("track-code-1");
+    }
+
+    [Fact]
+    public void ToPublicTrackingResponse_ShouldNotExposeCustomerAccountIdOrInternalItemIds()
+    {
+        var document = OrderTestData.OrderDocument(publicTrackingCode: "track-code-1");
+
+        var response = OrderMapper.ToPublicTrackingResponse(document);
+
+        response.PublicTrackingCode.Should().Be("track-code-1");
+        response.ShortOrderId.Should().Be(document.Id![^8..].ToUpperInvariant());
+        response.Items.Should().ContainSingle();
+        response.Items[0].ProductNameSnapshot.Should().Be("Taco");
+        response.Items[0].UnitPriceSnapshot.Should().Be(50);
     }
 }

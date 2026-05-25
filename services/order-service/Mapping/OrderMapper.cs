@@ -24,6 +24,7 @@ public static class OrderMapper
             CustomerAccountId = request.CustomerAccountId,
             RestaurantId = request.RestaurantId,
             BranchId = request.BranchId,
+            PublicTrackingCode = GeneratePublicTrackingCode(),
             Items = items,
             Subtotal = subtotal,
             Total = subtotal,
@@ -50,6 +51,7 @@ public static class OrderMapper
             CustomerAccountId = request.CustomerAccountId,
             RestaurantId = validatedOrder.RestaurantId,
             BranchId = validatedOrder.BranchId,
+            PublicTrackingCode = GeneratePublicTrackingCode(),
             Items = items,
             Subtotal = subtotal,
             Total = subtotal,
@@ -68,11 +70,29 @@ public static class OrderMapper
             CustomerAccountId = document.CustomerAccountId,
             RestaurantId = document.RestaurantId,
             BranchId = document.BranchId,
+            PublicTrackingCode = document.PublicTrackingCode,
             Items = document.Items.Select(ToResponseItem).ToList(),
             Subtotal = document.Subtotal,
             Total = document.Total,
             Status = document.Status,
             Notes = document.Notes,
+            CreatedAt = document.CreatedAt,
+            UpdatedAt = document.UpdatedAt
+        };
+    }
+
+    public static PublicOrderTrackingResponse ToPublicTrackingResponse(OrderDocument document)
+    {
+        return new PublicOrderTrackingResponse
+        {
+            PublicTrackingCode = document.PublicTrackingCode ?? string.Empty,
+            ShortOrderId = GetShortOrderId(document.Id),
+            Status = document.Status,
+            RestaurantNameSnapshot = null,
+            BranchNameSnapshot = null,
+            Items = document.Items.Select(ToPublicTrackingItemResponse).ToList(),
+            Subtotal = document.Subtotal,
+            Total = document.Total,
             CreatedAt = document.CreatedAt,
             UpdatedAt = document.UpdatedAt
         };
@@ -154,6 +174,18 @@ public static class OrderMapper
         };
     }
 
+    private static PublicOrderTrackingItemResponse ToPublicTrackingItemResponse(OrderItem item)
+    {
+        return new PublicOrderTrackingItemResponse
+        {
+            ProductNameSnapshot = item.ProductNameSnapshot,
+            Quantity = item.Quantity,
+            UnitPriceSnapshot = item.UnitPriceSnapshot,
+            SelectedModifiers = item.SelectedModifiers.Select(ToPublicSelectedModifierResponse).ToList(),
+            Subtotal = item.Subtotal
+        };
+    }
+
     private static SelectedModifierResponse ToResponseModifier(SelectedModifier modifier)
     {
         return new SelectedModifierResponse
@@ -164,5 +196,32 @@ public static class OrderMapper
             ModifierOptionName = modifier.ModifierOptionName,
             PriceAdjustment = modifier.PriceAdjustment
         };
+    }
+
+    private static PublicSelectedModifierResponse ToPublicSelectedModifierResponse(SelectedModifier modifier)
+    {
+        return new PublicSelectedModifierResponse
+        {
+            ModifierGroupName = modifier.ModifierGroupName,
+            ModifierOptionName = modifier.ModifierOptionName,
+            PriceAdjustment = modifier.PriceAdjustment
+        };
+    }
+
+    private static string GeneratePublicTrackingCode()
+    {
+        return Guid.NewGuid().ToString("N");
+    }
+
+    private static string GetShortOrderId(string? orderId)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return string.Empty;
+        }
+
+        return orderId.Length <= 8
+            ? orderId.ToUpperInvariant()
+            : orderId[^8..].ToUpperInvariant();
     }
 }

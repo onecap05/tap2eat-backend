@@ -25,6 +25,8 @@ public sealed class OrderServiceImplTests
         eventPublisher.OrderCreatedCalls.Should().Be(1);
         response.Id.Should().NotBeNullOrWhiteSpace();
         response.CustomerAccountId.Should().Be(request.CustomerAccountId);
+        response.PublicTrackingCode.Should().NotBeNullOrWhiteSpace();
+        response.PublicTrackingCode.Should().HaveLength(32);
         response.Status.Should().Be(OrderStatus.Created);
         response.Total.Should().Be(100);
     }
@@ -127,6 +129,32 @@ public sealed class OrderServiceImplTests
         var service = CreateService(new InMemoryOrderRepository());
 
         var act = async () => await service.GetByIdAsync("missing-order");
+
+        await act.Should().ThrowAsync<OrderNotFoundException>();
+    }
+
+    [Fact]
+    public async Task GetPublicTrackingAsync_WhenOrderExists_ShouldReturnLimitedPublicResponse()
+    {
+        var order = OrderTestData.OrderDocument(publicTrackingCode: "track-code-1");
+        var service = CreateService(new InMemoryOrderRepository(order));
+
+        var response = await service.GetPublicTrackingAsync("track-code-1");
+
+        response.PublicTrackingCode.Should().Be("track-code-1");
+        response.ShortOrderId.Should().Be(order.Id![^8..].ToUpperInvariant());
+        response.Status.Should().Be(order.Status);
+        response.Items.Should().ContainSingle();
+        response.Items[0].ProductNameSnapshot.Should().Be("Taco");
+        response.Total.Should().Be(order.Total);
+    }
+
+    [Fact]
+    public async Task GetPublicTrackingAsync_WhenOrderDoesNotExist_ShouldThrowNotFound()
+    {
+        var service = CreateService(new InMemoryOrderRepository());
+
+        var act = async () => await service.GetPublicTrackingAsync("missing-tracking-code");
 
         await act.Should().ThrowAsync<OrderNotFoundException>();
     }

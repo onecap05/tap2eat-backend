@@ -29,6 +29,13 @@ internal sealed class InMemoryOrderRepository : IOrderRepository
         return Task.FromResult(_orders.FirstOrDefault(order => order.Id == id));
     }
 
+    public Task<OrderDocument?> FindByPublicTrackingCodeAsync(
+        string publicTrackingCode,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(_orders.FirstOrDefault(order => order.PublicTrackingCode == publicTrackingCode));
+    }
+
     public Task<IReadOnlyList<OrderDocument>> FindByCustomerAccountIdAsync(
         string customerAccountId,
         CancellationToken cancellationToken = default)

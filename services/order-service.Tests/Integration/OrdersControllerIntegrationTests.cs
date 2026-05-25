@@ -1,11 +1,14 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FluentAssertions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using OrderService.Controllers;
 using OrderService.Domain.Enums;
 using OrderService.Dtos.Requests;
 using OrderService.Dtos.Responses;
@@ -54,8 +57,10 @@ public sealed class OrdersControllerIntegrationTests : IClassFixture<OrderApiTes
         body.Should().NotBeNull();
         body!.Status.Should().Be(OrderStatus.Created);
         body.Total.Should().Be(100);
+        body.PublicTrackingCode.Should().NotBeNullOrWhiteSpace();
         persistedOrder.Should().NotBeNull();
         persistedOrder!.CustomerAccountId.Should().Be(request.CustomerAccountId);
+        persistedOrder.PublicTrackingCode.Should().Be(body.PublicTrackingCode);
         _fixture.Catalog.Requests.Should().Be(1);
     }
 
@@ -156,6 +161,46 @@ public sealed class OrdersControllerIntegrationTests : IClassFixture<OrderApiTes
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         body!.Code.Should().Be("ORDER_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task GetPublicTracking_WhenOrderExists_ShouldReturnLimitedOrder()
+    {
+        var order = OrderTestData.OrderDocument(publicTrackingCode: "track-code-1");
+        await _fixture.Orders.InsertOneAsync(order);
+
+        var response = await _fixture.Client.GetAsync("/api/orders/public/track/track-code-1");
+        var body = await response.Content.ReadFromJsonAsync<PublicOrderTrackingResponse>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        body.Should().NotBeNull();
+        body!.PublicTrackingCode.Should().Be("track-code-1");
+        body.ShortOrderId.Should().Be(order.Id![^8..].ToUpperInvariant());
+        body.Status.Should().Be(order.Status);
+        body.Items.Should().ContainSingle();
+        body.Items[0].ProductNameSnapshot.Should().Be("Taco");
+        body.Total.Should().Be(order.Total);
+    }
+
+    [Fact]
+    public async Task GetPublicTracking_WhenOrderDoesNotExist_ShouldReturnNotFound()
+    {
+        var response = await _fixture.Client.GetAsync("/api/orders/public/track/missing-code");
+        var body = await response.Content.ReadFromJsonAsync<ErrorResponse>(JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        body!.Code.Should().Be("ORDER_NOT_FOUND");
+    }
+
+    [Fact]
+    public void GetPublicTracking_ShouldAllowAnonymousAccess()
+    {
+        var method = typeof(OrdersController).GetMethod(
+            nameof(OrdersController.GetPublicTracking),
+            BindingFlags.Instance | BindingFlags.Public);
+
+        method.Should().NotBeNull();
+        method!.GetCustomAttribute<AllowAnonymousAttribute>().Should().NotBeNull();
     }
 
     [Fact]

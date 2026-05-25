@@ -19,5 +19,94 @@ public sealed class RecommendationGraphRepositoryTests
         RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("LIKES_TAG");
         RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("BELONGS_TO");
         RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("HAS_TAG");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("WITH customer, restaurant");
+    }
+
+    [Fact]
+    public void UpsertDeliveredOrderQuery_ShouldUseExpectedParameterNames()
+    {
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("$customerAccountId");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("$restaurantId");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("$branchId");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("$deliveredAt");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("$products");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("productPayload.productId");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("productPayload.quantity");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("productPayload.productNameSnapshot");
+        RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("productPayload.tags");
+    }
+
+    [Fact]
+    public void BuildUpsertDeliveredOrderParameters_ShouldIncludeRequiredNeo4jParameterNames()
+    {
+        var deliveredAt = DateTime.UtcNow;
+        var parameters = RecommendationGraphRepository.BuildUpsertDeliveredOrderParameters(
+            new DeliveredOrderGraphUpdate
+            {
+                CustomerAccountId = "customer-1",
+                RestaurantId = "restaurant-1",
+                BranchId = "branch-1",
+                DeliveredAt = deliveredAt,
+                Products =
+                [
+                    new DeliveredProductGraphUpdate
+                    {
+                        ProductId = "product-1",
+                        Quantity = 2,
+                        ProductNameSnapshot = "Burger",
+                        Tags = ["hamburguesa", "Hamburguesa", "bbq"]
+                    }
+                ]
+            });
+
+        parameters.Keys.Should().Contain([
+            "customerAccountId",
+            "restaurantId",
+            "branchId",
+            "deliveredAt",
+            "products"
+        ]);
+        parameters["customerAccountId"].Should().Be("customer-1");
+        parameters["restaurantId"].Should().Be("restaurant-1");
+        parameters["branchId"].Should().Be("branch-1");
+        parameters["deliveredAt"].Should().Be(deliveredAt);
+    }
+
+    [Fact]
+    public void BuildUpsertDeliveredOrderParameters_ShouldIncludeProductsWithTagsWithoutInvalidProductIds()
+    {
+        var parameters = RecommendationGraphRepository.BuildUpsertDeliveredOrderParameters(
+            new DeliveredOrderGraphUpdate
+            {
+                CustomerAccountId = "customer-1",
+                RestaurantId = "restaurant-1",
+                BranchId = "branch-1",
+                Products =
+                [
+                    new DeliveredProductGraphUpdate
+                    {
+                        ProductId = "product-1",
+                        Quantity = 0,
+                        ProductNameSnapshot = "Pizza",
+                        Tags = ["pizza", "", "italiano"]
+                    },
+                    new DeliveredProductGraphUpdate
+                    {
+                        ProductId = "",
+                        Quantity = 1,
+                        Tags = ["ignored"]
+                    }
+                ]
+            });
+
+        var products = parameters["products"].Should()
+            .BeAssignableTo<IReadOnlyList<Dictionary<string, object?>>>()
+            .Subject;
+
+        products.Should().ContainSingle();
+        products[0]["productId"].Should().Be("product-1");
+        products[0]["quantity"].Should().Be(1);
+        products[0]["productNameSnapshot"].Should().Be("Pizza");
+        products[0]["tags"].Should().BeEquivalentTo(new[] { "pizza", "italiano" });
     }
 }

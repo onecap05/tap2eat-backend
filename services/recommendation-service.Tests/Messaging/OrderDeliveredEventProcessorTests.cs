@@ -33,6 +33,7 @@ public sealed class OrderDeliveredEventProcessorTests
         catalogClient.ProductsById["product-1"] = new CatalogProductResponse
         {
             Id = "product-1",
+            Name = "Taco Vegano",
             Tags = ["spicy"],
             DietaryFlags = ["vegan"],
             Allergens = ["nuts"]
@@ -48,11 +49,15 @@ public sealed class OrderDeliveredEventProcessorTests
             BranchId = "branch-1",
             NewStatus = "Delivered",
             OccurredAt = DateTime.UtcNow,
-            Items = [new OrderStatusChangedItemEvent { ProductId = "product-1", Quantity = 1 }]
+            Items = [new OrderStatusChangedItemEvent { ProductId = "product-1", Quantity = 2 }]
         });
 
         graph.SavedUpdates.Should().ContainSingle();
         graph.SavedUpdates[0].CustomerAccountId.Should().Be("customer-1");
+        graph.SavedUpdates[0].RestaurantId.Should().Be("restaurant-1");
+        graph.SavedUpdates[0].BranchId.Should().Be("branch-1");
+        graph.SavedUpdates[0].Products[0].Quantity.Should().Be(2);
+        graph.SavedUpdates[0].Products[0].ProductNameSnapshot.Should().Be("Taco Vegano");
         graph.SavedUpdates[0].Products[0].Tags.Should().Contain(["spicy", "vegan", "allergen:nuts"]);
     }
 

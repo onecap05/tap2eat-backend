@@ -78,6 +78,14 @@ public sealed class OrderDeliveredEventProcessor : IOrderDeliveredEventProcessor
             return;
         }
 
+        _logger.LogInformation(
+            "Processing delivered order for recommendation graph. OrderId={OrderId}, CustomerAccountId={CustomerAccountId}, RestaurantId={RestaurantId}, BranchId={BranchId}, ItemCount={ItemCount}",
+            orderStatusChangedEvent.OrderId,
+            orderStatusChangedEvent.CustomerAccountId,
+            orderStatusChangedEvent.RestaurantId,
+            orderStatusChangedEvent.BranchId,
+            orderStatusChangedEvent.Items.Count);
+
         var graphProducts = new List<DeliveredProductGraphUpdate>();
 
         foreach (var item in orderStatusChangedEvent.Items.Where(item => !string.IsNullOrWhiteSpace(item.ProductId)))
@@ -88,20 +96,40 @@ public sealed class OrderDeliveredEventProcessor : IOrderDeliveredEventProcessor
             graphProducts.Add(new DeliveredProductGraphUpdate
             {
                 ProductId = item.ProductId,
+                Quantity = item.Quantity > 0 ? item.Quantity : 1,
+                ProductNameSnapshot = product?.Name ?? item.ProductNameSnapshot,
                 Tags = tags
             });
         }
 
-        await _graphRepository.UpsertDeliveredOrderAsync(
-            new DeliveredOrderGraphUpdate
-            {
-                CustomerAccountId = orderStatusChangedEvent.CustomerAccountId,
-                RestaurantId = orderStatusChangedEvent.RestaurantId,
-                BranchId = orderStatusChangedEvent.BranchId,
-                DeliveredAt = orderStatusChangedEvent.OccurredAt,
-                Products = graphProducts
-            },
-            cancellationToken);
+        var update = new DeliveredOrderGraphUpdate
+        {
+            CustomerAccountId = orderStatusChangedEvent.CustomerAccountId,
+            RestaurantId = orderStatusChangedEvent.RestaurantId,
+            BranchId = orderStatusChangedEvent.BranchId,
+            DeliveredAt = orderStatusChangedEvent.OccurredAt,
+            Products = graphProducts
+        };
+
+        try
+        {
+            await _graphRepository.UpsertDeliveredOrderAsync(
+                update,
+                cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Failed to save delivered order in recommendation graph. OrderId={OrderId}, CustomerAccountId={CustomerAccountId}, RestaurantId={RestaurantId}, BranchId={BranchId}, ItemCount={ItemCount}",
+                orderStatusChangedEvent.OrderId,
+                orderStatusChangedEvent.CustomerAccountId,
+                orderStatusChangedEvent.RestaurantId,
+                orderStatusChangedEvent.BranchId,
+                orderStatusChangedEvent.Items.Count);
+
+            throw;
+        }
     }
 
     private static List<string> BuildTags(CatalogProductResponse? product)

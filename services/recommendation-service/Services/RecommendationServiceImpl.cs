@@ -13,7 +13,12 @@ public sealed class RecommendationServiceImpl : IRecommendationService
 
     private const string NearReason = "Cerca de ti";
     private const string SimilarTagsReason = "Porque has pedido productos con etiquetas similares";
+    private const string SimilarCustomersReason = "Personas con gustos parecidos también pidieron aquí";
     private const string AutomaticReason = "Sucursal disponible seleccionada automáticamente";
+    private const string NearbyRecommendationType = "NEARBY";
+    private const string AlsoOrderedRecommendationType = "ALSO_ORDERED";
+    private const string TasteBasedRecommendationType = "TASTE_BASED";
+    private const int MaxRecommendationsPerSection = 6;
 
     private readonly ICatalogClient _catalogClient;
     private readonly IRecommendationGraphRepository _graphRepository;
@@ -50,63 +55,61 @@ public sealed class RecommendationServiceImpl : IRecommendationService
 
         var candidates = await LoadCandidatesAsync(cancellationToken);
         var preferredTags = await _graphRepository.GetPreferredTagsAsync(customerAccountId, cancellationToken);
-
-        if (preferredTags.Count == 0)
-        {
-            return BuildNearbyRecommendations(candidates, query);
-        }
-
-        var hasLocation = _distanceService.HasValidLocation(query.Lat, query.Lng);
-        var radiusKm = _distanceService.NormalizeRadiusKm(query.RadiusKm);
-        var recommendedRestaurantIds = await _graphRepository.GetRecommendedRestaurantIdsByTagsAsync(
+        var tasteBased = await BuildTasteBasedRecommendationsAsync(
+            candidates,
             preferredTags,
+            query,
+            excludedRestaurantIds: new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             cancellationToken);
 
-        var recommendedRestaurantSet = recommendedRestaurantIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var recommendations = new List<BranchRecommendationResponse>();
+        return tasteBased.Count == 0 ? BuildNearbyRecommendations(candidates, query) : tasteBased;
+    }
 
-        foreach (var candidate in candidates)
+    public async Task<CustomerRecommendationSectionsResponse> GetCustomerSectionsAsync(
+        string customerAccountId,
+        RecommendationQueryRequest query,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(customerAccountId))
         {
-            if (!recommendedRestaurantSet.Contains(candidate.Restaurant.Id))
-            {
-                continue;
-            }
-
-            var branch = PickBranch(candidate.Branches, query, out var distanceKm);
-            if (branch is null)
-            {
-                continue;
-            }
-
-            if (hasLocation && distanceKm is not null && distanceKm > radiusKm)
-            {
-                continue;
-            }
-
-            var distanceScore = distanceKm is null ? 0 : Math.Max(0, radiusKm - distanceKm.Value);
-            var ranking = recommendedRestaurantIds
-                .Select((id, index) => new { id, index })
-                .FirstOrDefault(item => string.Equals(item.id, candidate.Restaurant.Id, StringComparison.OrdinalIgnoreCase))
-                ?.index ?? recommendedRestaurantIds.Count;
-
-            recommendations.Add(ToResponse(
-                candidate.Restaurant,
-                branch,
-                distanceKm,
-                SimilarTagsReason,
-                (recommendedRestaurantIds.Count - ranking) * 10 + distanceScore,
-                warning: null));
+            throw new RecommendationValidationException("Customer account id is required.");
         }
 
-        if (recommendations.Count == 0)
-        {
-            return BuildNearbyRecommendations(candidates, query);
-        }
-
-        return recommendations
-            .OrderByDescending(recommendation => recommendation.Score)
-            .ThenBy(recommendation => recommendation.DistanceKm ?? double.MaxValue)
+        var candidates = await LoadCandidatesAsync(cancellationToken);
+        var nearby = BuildNearbyRecommendations(candidates, query)
+            .Take(MaxRecommendationsPerSection)
             .ToList();
+
+        var usedRestaurantIds = nearby
+            .Select(recommendation => recommendation.RestaurantId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var alsoOrdered = await BuildAlsoOrderedRecommendationsAsync(
+            candidates,
+            customerAccountId,
+            query,
+            usedRestaurantIds,
+            cancellationToken);
+
+        foreach (var recommendation in alsoOrdered)
+        {
+            usedRestaurantIds.Add(recommendation.RestaurantId);
+        }
+
+        var preferredTags = await _graphRepository.GetPreferredTagsAsync(customerAccountId, cancellationToken);
+        var tasteBased = await BuildTasteBasedRecommendationsAsync(
+            candidates,
+            preferredTags,
+            query,
+            usedRestaurantIds,
+            cancellationToken);
+
+        return new CustomerRecommendationSectionsResponse
+        {
+            Nearby = nearby,
+            AlsoOrdered = alsoOrdered,
+            TasteBased = tasteBased
+        };
     }
 
     public async Task<RecommendedBranchResponse> GetNearestBranchAsync(
@@ -134,7 +137,8 @@ public sealed class RecommendationServiceImpl : IRecommendationService
             distanceKm,
             hasLocation ? NearReason : AutomaticReason,
             distanceKm is null ? 1 : Math.Max(1, 100 - distanceKm.Value),
-            hasLocation ? null : NoLocationWarning);
+            hasLocation ? null : NoLocationWarning,
+            NearbyRecommendationType);
 
         return new RecommendedBranchResponse
         {
@@ -182,12 +186,151 @@ public sealed class RecommendationServiceImpl : IRecommendationService
                 distanceKm,
                 hasLocation ? NearReason : AutomaticReason,
                 score,
-                hasLocation ? null : NoLocationWarning));
+                hasLocation ? null : NoLocationWarning,
+                NearbyRecommendationType));
         }
 
         return recommendations
             .OrderBy(recommendation => recommendation.DistanceKm ?? double.MaxValue)
             .ThenByDescending(recommendation => recommendation.Score)
+            .DistinctBy(recommendation => recommendation.RestaurantId, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private async Task<IReadOnlyList<BranchRecommendationResponse>> BuildAlsoOrderedRecommendationsAsync(
+        IReadOnlyList<RestaurantBranchCandidate> candidates,
+        string customerAccountId,
+        RecommendationQueryRequest query,
+        ISet<string> excludedRestaurantIds,
+        CancellationToken cancellationToken)
+    {
+        var recommendedRestaurantIds = await _graphRepository.GetAlsoOrderedRestaurantIdsAsync(
+            customerAccountId,
+            cancellationToken);
+        var recommendedRestaurantSet = recommendedRestaurantIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (recommendedRestaurantSet.Count == 0)
+        {
+            return [];
+        }
+
+        var recommendations = BuildRankedRecommendations(
+            candidates,
+            recommendedRestaurantIds,
+            recommendedRestaurantSet,
+            query,
+            excludedRestaurantIds,
+            SimilarCustomersReason,
+            AlsoOrderedRecommendationType);
+
+        return recommendations.Count == 0 && excludedRestaurantIds.Count > 0
+            ? BuildRankedRecommendations(
+                candidates,
+                recommendedRestaurantIds,
+                recommendedRestaurantSet,
+                query,
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                SimilarCustomersReason,
+                AlsoOrderedRecommendationType)
+            : recommendations;
+    }
+
+    private async Task<IReadOnlyList<BranchRecommendationResponse>> BuildTasteBasedRecommendationsAsync(
+        IReadOnlyList<RestaurantBranchCandidate> candidates,
+        IReadOnlyList<string> preferredTags,
+        RecommendationQueryRequest query,
+        ISet<string> excludedRestaurantIds,
+        CancellationToken cancellationToken)
+    {
+        if (preferredTags.Count == 0)
+        {
+            return [];
+        }
+
+        var recommendedRestaurantIds = await _graphRepository.GetRecommendedRestaurantIdsByTagsAsync(
+            preferredTags,
+            cancellationToken);
+        var recommendedRestaurantSet = recommendedRestaurantIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (recommendedRestaurantSet.Count == 0)
+        {
+            return [];
+        }
+
+        var recommendations = BuildRankedRecommendations(
+            candidates,
+            recommendedRestaurantIds,
+            recommendedRestaurantSet,
+            query,
+            excludedRestaurantIds,
+            BuildTasteReason(preferredTags),
+            TasteBasedRecommendationType);
+
+        return recommendations.Count == 0 && excludedRestaurantIds.Count > 0
+            ? BuildRankedRecommendations(
+                candidates,
+                recommendedRestaurantIds,
+                recommendedRestaurantSet,
+                query,
+                new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                BuildTasteReason(preferredTags),
+                TasteBasedRecommendationType)
+            : recommendations;
+    }
+
+    private IReadOnlyList<BranchRecommendationResponse> BuildRankedRecommendations(
+        IReadOnlyList<RestaurantBranchCandidate> candidates,
+        IReadOnlyList<string> rankedRestaurantIds,
+        ISet<string> rankedRestaurantSet,
+        RecommendationQueryRequest query,
+        ISet<string> excludedRestaurantIds,
+        string reason,
+        string recommendationType)
+    {
+        var hasLocation = _distanceService.HasValidLocation(query.Lat, query.Lng);
+        var radiusKm = _distanceService.NormalizeRadiusKm(query.RadiusKm);
+        var recommendations = new List<BranchRecommendationResponse>();
+
+        foreach (var candidate in candidates)
+        {
+            if (excludedRestaurantIds.Contains(candidate.Restaurant.Id)
+                || !rankedRestaurantSet.Contains(candidate.Restaurant.Id))
+            {
+                continue;
+            }
+
+            var branch = PickBranch(candidate.Branches, query, out var distanceKm);
+            if (branch is null)
+            {
+                continue;
+            }
+
+            if (hasLocation && distanceKm is not null && distanceKm > radiusKm)
+            {
+                continue;
+            }
+
+            var distanceScore = distanceKm is null ? 0 : Math.Max(0, radiusKm - distanceKm.Value);
+            var ranking = rankedRestaurantIds
+                .Select((id, index) => new { id, index })
+                .FirstOrDefault(item => string.Equals(item.id, candidate.Restaurant.Id, StringComparison.OrdinalIgnoreCase))
+                ?.index ?? rankedRestaurantIds.Count;
+
+            recommendations.Add(ToResponse(
+                candidate.Restaurant,
+                branch,
+                distanceKm,
+                reason,
+                (rankedRestaurantIds.Count - ranking) * 10 + distanceScore,
+                warning: hasLocation ? null : NoLocationWarning,
+                recommendationType));
+        }
+
+        return recommendations
+            .OrderByDescending(recommendation => recommendation.Score)
+            .ThenBy(recommendation => recommendation.DistanceKm ?? double.MaxValue)
+            .DistinctBy(recommendation => recommendation.RestaurantId, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxRecommendationsPerSection)
             .ToList();
     }
 
@@ -254,7 +397,8 @@ public sealed class RecommendationServiceImpl : IRecommendationService
         double? distanceKm,
         string reason,
         double score,
-        string? warning)
+        string? warning,
+        string recommendationType)
     {
         return new BranchRecommendationResponse
         {
@@ -266,11 +410,21 @@ public sealed class RecommendationServiceImpl : IRecommendationService
             BranchAddress = branch.FormattedAddress,
             Latitude = branch.Latitude,
             Longitude = branch.Longitude,
-            DistanceKm = distanceKm,
+            DistanceKm = distanceKm is null ? null : Math.Round(distanceKm.Value, 2, MidpointRounding.AwayFromZero),
             Reason = reason,
             Score = Math.Round(score, 2, MidpointRounding.AwayFromZero),
-            Warning = warning
+            Warning = warning,
+            RecommendationType = recommendationType
         };
+    }
+
+    private static string BuildTasteReason(IReadOnlyList<string> preferredTags)
+    {
+        var preferredTag = preferredTags.FirstOrDefault(tag => !string.IsNullOrWhiteSpace(tag));
+
+        return string.IsNullOrWhiteSpace(preferredTag)
+            ? SimilarTagsReason
+            : $"Hemos visto que te gusta {preferredTag}";
     }
 
     private static bool IsVisibleRestaurant(CatalogRestaurantResponse restaurant)

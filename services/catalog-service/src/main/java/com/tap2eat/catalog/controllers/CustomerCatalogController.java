@@ -8,6 +8,7 @@ import com.tap2eat.catalog.services.ICustomerCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,6 +24,11 @@ public class CustomerCatalogController {
     @GetMapping("/restaurants")
     public List<CustomerRestaurantResponse> getRestaurants() {
         return customerCatalogService.getActiveRestaurants();
+    }
+
+    @GetMapping("/restaurants/search")
+    public List<CustomerRestaurantResponse> searchRestaurants(@RequestParam(required = false) String query) {
+        return customerCatalogService.searchActiveRestaurants(query);
     }
 
     @GetMapping("/restaurants/{restaurantId}")

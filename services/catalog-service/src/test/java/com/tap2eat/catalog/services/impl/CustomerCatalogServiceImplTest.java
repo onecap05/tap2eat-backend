@@ -95,6 +95,91 @@ class CustomerCatalogServiceImplTest {
     }
 
     @Test
+    void searchActiveRestaurants_shouldFindByRestaurantName() {
+        RestaurantDocument tacos = restaurant("restaurant-tacos");
+        tacos.setName("Tacos Centro");
+        RestaurantDocument pizza = restaurant("restaurant-pizza");
+        pizza.setName("Pizza Norte");
+        when(restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull())
+                .thenReturn(List.of(tacos, pizza));
+        when(productRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).thenReturn(List.of());
+        when(branchRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-tacos"))
+                .thenReturn(List.of(branch("branch-tacos", "restaurant-tacos", CatalogTestDataFactory.openAvailability())));
+
+        List<CustomerRestaurantResponse> restaurants = customerCatalogService.searchActiveRestaurants("centro");
+
+        assertThat(restaurants).extracting(CustomerRestaurantResponse::id)
+                .containsExactly("restaurant-tacos");
+    }
+
+    @Test
+    void searchActiveRestaurants_shouldFindByProductTag() {
+        RestaurantDocument tacos = restaurant("restaurant-tacos");
+        tacos.setName("La Esquina");
+        ProductDocument product = CatalogTestDataFactory.simpleProduct("product-taco", "restaurant-tacos", "category-1");
+        product.setTags(List.of("tacos", "picante"));
+        when(restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull())
+                .thenReturn(List.of(tacos));
+        when(productRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).thenReturn(List.of(product));
+        when(branchRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-tacos"))
+                .thenReturn(List.of(branch("branch-tacos", "restaurant-tacos", CatalogTestDataFactory.openAvailability())));
+
+        List<CustomerRestaurantResponse> restaurants = customerCatalogService.searchActiveRestaurants("tacos");
+
+        assertThat(restaurants).extracting(CustomerRestaurantResponse::id)
+                .containsExactly("restaurant-tacos");
+    }
+
+    @Test
+    void searchActiveRestaurants_shouldNormalizeSimpleTypoAlias() {
+        RestaurantDocument tacos = restaurant("restaurant-tacos");
+        ProductDocument product = CatalogTestDataFactory.simpleProduct("product-taco", "restaurant-tacos", "category-1");
+        product.setTags(List.of("tacos"));
+        when(restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull())
+                .thenReturn(List.of(tacos));
+        when(productRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).thenReturn(List.of(product));
+        when(branchRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-tacos"))
+                .thenReturn(List.of(branch("branch-tacos", "restaurant-tacos", CatalogTestDataFactory.openAvailability())));
+
+        List<CustomerRestaurantResponse> restaurants = customerCatalogService.searchActiveRestaurants("Tacoz");
+
+        assertThat(restaurants).extracting(CustomerRestaurantResponse::id)
+                .containsExactly("restaurant-tacos");
+    }
+
+    @Test
+    void searchActiveRestaurants_shouldReturnActiveRestaurantsWhenQueryIsBlank() {
+        RestaurantDocument restaurant = restaurant("restaurant-open");
+        when(restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull())
+                .thenReturn(List.of(restaurant));
+        when(branchRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-open"))
+                .thenReturn(List.of(branch("branch-open", "restaurant-open", CatalogTestDataFactory.openAvailability())));
+
+        List<CustomerRestaurantResponse> restaurants = customerCatalogService.searchActiveRestaurants("   ");
+
+        assertThat(restaurants).extracting(CustomerRestaurantResponse::id)
+                .containsExactly("restaurant-open");
+    }
+
+    @Test
+    void searchActiveRestaurants_shouldNotDuplicateRestaurantWhenRestaurantAndProductMatch() {
+        RestaurantDocument tacos = restaurant("restaurant-tacos");
+        tacos.setName("Tacos Centro");
+        ProductDocument product = CatalogTestDataFactory.simpleProduct("product-taco", "restaurant-tacos", "category-1");
+        product.setTags(List.of("tacos"));
+        when(restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull())
+                .thenReturn(List.of(tacos));
+        when(productRepository.findAllByIsActiveTrueAndDeletedAtIsNull()).thenReturn(List.of(product));
+        when(branchRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-tacos"))
+                .thenReturn(List.of(branch("branch-tacos", "restaurant-tacos", CatalogTestDataFactory.openAvailability())));
+
+        List<CustomerRestaurantResponse> restaurants = customerCatalogService.searchActiveRestaurants("tacos");
+
+        assertThat(restaurants).extracting(CustomerRestaurantResponse::id)
+                .containsExactly("restaurant-tacos");
+    }
+
+    @Test
     void getActiveRestaurantById_shouldReturnActiveRestaurantWithOpenState() {
         when(restaurantRepository.findByIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-1"))
                 .thenReturn(Optional.of(restaurant("restaurant-1")));

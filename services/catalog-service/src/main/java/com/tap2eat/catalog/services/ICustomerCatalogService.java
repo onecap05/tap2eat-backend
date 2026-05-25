@@ -11,6 +11,8 @@ public interface ICustomerCatalogService {
 
     List<CustomerRestaurantResponse> getActiveRestaurants();
 
+    List<CustomerRestaurantResponse> searchActiveRestaurants(String query);
+
     CustomerRestaurantResponse getActiveRestaurantById(String restaurantId);
 
     List<CustomerBranchResponse> getActiveBranchesByRestaurant(String restaurantId);

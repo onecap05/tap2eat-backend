@@ -22,14 +22,27 @@ import com.tap2eat.catalog.services.ICustomerCatalogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class CustomerCatalogServiceImpl implements ICustomerCatalogService {
+
+    private static final Map<String, String> SEARCH_ALIASES = Map.of(
+            "tacoz", "tacos",
+            "taco", "tacos",
+            "burger", "hamburguesa",
+            "hamburgesa", "hamburguesa",
+            "hamburguesas", "hamburguesa",
+            "postre", "postres",
+            "bebida", "bebidas"
+    );
 
     private final IRestaurantRepository restaurantRepository;
     private final IBranchRepository branchRepository;
@@ -41,6 +54,48 @@ public class CustomerCatalogServiceImpl implements ICustomerCatalogService {
     @Override
     public List<CustomerRestaurantResponse> getActiveRestaurants() {
         return restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull().stream()
+                .map(restaurant -> customerCatalogResponseMapper.toRestaurantResponse(
+                        restaurant,
+                        hasOpenBranch(restaurant.getId())
+                ))
+                .toList();
+    }
+
+    @Override
+    public List<CustomerRestaurantResponse> searchActiveRestaurants(String query) {
+        String normalizedQuery = normalizeSearchText(query);
+
+        if (normalizedQuery.isBlank()) {
+            return getActiveRestaurants();
+        }
+
+        String aliasedQuery = SEARCH_ALIASES.getOrDefault(normalizedQuery, normalizedQuery);
+        List<RestaurantDocument> activeRestaurants = restaurantRepository.findAllByIsActiveTrueAndDeletedAtIsNull();
+        Map<String, RestaurantDocument> activeRestaurantsById = activeRestaurants.stream()
+                .collect(Collectors.toMap(
+                        RestaurantDocument::getId,
+                        restaurant -> restaurant,
+                        (first, second) -> first,
+                        LinkedHashMap::new
+                ));
+
+        Map<String, RestaurantDocument> matches = new LinkedHashMap<>();
+
+        for (RestaurantDocument restaurant : activeRestaurants) {
+            if (matchesRestaurant(restaurant, aliasedQuery)) {
+                matches.put(restaurant.getId(), restaurant);
+            }
+        }
+
+        for (ProductDocument product : productRepository.findAllByIsActiveTrueAndDeletedAtIsNull()) {
+            RestaurantDocument restaurant = activeRestaurantsById.get(product.getRestaurantId());
+
+            if (restaurant != null && matchesProduct(product, aliasedQuery)) {
+                matches.putIfAbsent(restaurant.getId(), restaurant);
+            }
+        }
+
+        return matches.values().stream()
                 .map(restaurant -> customerCatalogResponseMapper.toRestaurantResponse(
                         restaurant,
                         hasOpenBranch(restaurant.getId())
@@ -188,5 +243,36 @@ public class CustomerCatalogServiceImpl implements ICustomerCatalogService {
         if (id == null || id.isBlank()) {
             throw new CatalogValidationException(CatalogErrorCode.RESOURCE_NOT_FOUND);
         }
+    }
+
+    private boolean matchesRestaurant(RestaurantDocument restaurant, String normalizedQuery) {
+        return containsSearchText(restaurant.getName(), normalizedQuery)
+                || containsSearchText(restaurant.getDescription(), normalizedQuery);
+    }
+
+    private boolean matchesProduct(ProductDocument product, String normalizedQuery) {
+        return containsSearchText(product.getName(), normalizedQuery)
+                || containsSearchText(product.getDescription(), normalizedQuery)
+                || (product.getTags() != null && product.getTags().stream().anyMatch(tag -> containsSearchText(tag, normalizedQuery)));
+    }
+
+    private boolean containsSearchText(String value, String normalizedQuery) {
+        return normalizeSearchText(value)
+                .replace('-', ' ')
+                .contains(normalizedQuery.replace('-', ' '));
+    }
+
+    private String normalizeSearchText(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        String withoutAccents = Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+
+        return withoutAccents
+                .toLowerCase()
+                .trim()
+                .replaceAll("\\s+", " ");
     }
 }

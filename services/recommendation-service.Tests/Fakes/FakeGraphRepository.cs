@@ -10,6 +10,8 @@ public sealed class FakeGraphRepository : IRecommendationGraphRepository
 
     public List<string> RecommendedRestaurantIds { get; } = [];
 
+    public List<string> AlsoOrderedRestaurantIds { get; } = [];
+
     public Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;
@@ -36,5 +38,12 @@ public sealed class FakeGraphRepository : IRecommendationGraphRepository
         CancellationToken cancellationToken = default)
     {
         return Task.FromResult<IReadOnlyList<string>>(RecommendedRestaurantIds);
+    }
+
+    public Task<IReadOnlyList<string>> GetAlsoOrderedRestaurantIdsAsync(
+        string customerAccountId,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IReadOnlyList<string>>(AlsoOrderedRestaurantIds);
     }
 }

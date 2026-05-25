@@ -25,4 +25,6 @@ public class BranchRecommendationResponse
     public double Score { get; set; }
 
     public string? Warning { get; set; }
+
+    public string RecommendationType { get; set; } = string.Empty;
 }

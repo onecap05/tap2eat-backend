@@ -50,6 +50,17 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
         LIMIT 20
         """;
 
+    private const string AlsoOrderedRestaurantsQuery = """
+        MATCH (customer:Customer {id: $customerAccountId})-[:ORDERED_FROM]->(knownRestaurant:Restaurant)
+        MATCH (similarCustomer:Customer)-[:ORDERED_FROM]->(knownRestaurant)
+        WHERE similarCustomer.id <> $customerAccountId
+        MATCH (similarCustomer)-[alsoOrdered:ORDERED_FROM]->(recommendedRestaurant:Restaurant)
+        WHERE NOT (customer)-[:ORDERED_FROM]->(recommendedRestaurant)
+        RETURN recommendedRestaurant.id AS id, sum(coalesce(alsoOrdered.count, 1)) AS score
+        ORDER BY score DESC
+        LIMIT 20
+        """;
+
     private readonly IDriver _driver;
     private readonly ILogger<RecommendationGraphRepository> _logger;
 
@@ -169,6 +180,30 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
         catch (Exception exception)
         {
             _logger.LogWarning(exception, "Could not load tag-based restaurant recommendations from Neo4j.");
+            return [];
+        }
+    }
+
+    public async Task<IReadOnlyList<string>> GetAlsoOrderedRestaurantIdsAsync(
+        string customerAccountId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(customerAccountId))
+        {
+            return [];
+        }
+
+        try
+        {
+            await using var session = _driver.AsyncSession();
+            var cursor = await session.RunAsync(AlsoOrderedRestaurantsQuery, new { customerAccountId });
+            var records = await cursor.ToListAsync(record => record["id"].As<string>());
+
+            return records;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Could not load also-ordered restaurant recommendations from Neo4j.");
             return [];
         }
     }

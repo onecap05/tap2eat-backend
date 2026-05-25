@@ -15,4 +15,8 @@ public interface IRecommendationGraphRepository
     Task<IReadOnlyList<string>> GetRecommendedRestaurantIdsByTagsAsync(
         IReadOnlyList<string> tagNames,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<string>> GetAlsoOrderedRestaurantIdsAsync(
+        string customerAccountId,
+        CancellationToken cancellationToken = default);
 }

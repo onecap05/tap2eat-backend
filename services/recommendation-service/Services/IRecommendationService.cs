@@ -14,6 +14,11 @@ public interface IRecommendationService
         RecommendationQueryRequest query,
         CancellationToken cancellationToken = default);
 
+    Task<CustomerRecommendationSectionsResponse> GetCustomerSectionsAsync(
+        string customerAccountId,
+        RecommendationQueryRequest query,
+        CancellationToken cancellationToken = default);
+
     Task<RecommendedBranchResponse> GetNearestBranchAsync(
         string restaurantId,
         RecommendationQueryRequest query,

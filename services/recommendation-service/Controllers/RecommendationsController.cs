@@ -42,6 +42,20 @@ public sealed class RecommendationsController : ControllerBase
         return Ok(recommendations);
     }
 
+    [HttpGet("customers/{customerAccountId}/sections")]
+    public async Task<ActionResult<CustomerRecommendationSectionsResponse>> GetCustomerSections(
+        string customerAccountId,
+        [FromQuery] RecommendationQueryRequest query,
+        CancellationToken cancellationToken)
+    {
+        var recommendations = await _recommendationService.GetCustomerSectionsAsync(
+            customerAccountId,
+            query,
+            cancellationToken);
+
+        return Ok(recommendations);
+    }
+
     [HttpGet("restaurants/{restaurantId}/nearest-branch")]
     public async Task<ActionResult<RecommendedBranchResponse>> GetNearestBranch(
         string restaurantId,

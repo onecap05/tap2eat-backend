@@ -17,13 +17,14 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
         ON CREATE SET orderedAt.count = 0
         SET orderedAt.count = orderedAt.count + 1,
             orderedAt.lastOrderedAt = $deliveredAt
-        WITH customer
+        WITH customer, restaurant
         UNWIND $products AS productPayload
         MERGE (product:Product {id: productPayload.productId})
+        SET product.nameSnapshot = coalesce(productPayload.productNameSnapshot, product.nameSnapshot)
         MERGE (product)-[:SOLD_BY]->(restaurant)
         MERGE (customer)-[orderedProduct:ORDERED_PRODUCT]->(product)
         ON CREATE SET orderedProduct.count = 0
-        SET orderedProduct.count = orderedProduct.count + 1,
+        SET orderedProduct.count = orderedProduct.count + productPayload.quantity,
             orderedProduct.lastOrderedAt = $deliveredAt
         WITH customer, product, productPayload
         UNWIND productPayload.tags AS tagName
@@ -31,7 +32,7 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
         MERGE (product)-[:HAS_TAG]->(tag)
         MERGE (customer)-[likesTag:LIKES_TAG]->(tag)
         ON CREATE SET likesTag.score = 0
-        SET likesTag.score = likesTag.score + 1,
+        SET likesTag.score = likesTag.score + productPayload.quantity,
             likesTag.lastSeenAt = $deliveredAt
         """;
 
@@ -101,11 +102,27 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
         DeliveredOrderGraphUpdate update,
         CancellationToken cancellationToken = default)
     {
+        var parameters = BuildUpsertDeliveredOrderParameters(update);
+
+        await using var session = _driver.AsyncSession();
+        await session.ExecuteWriteAsync(async tx =>
+        {
+            await tx.RunAsync(UpsertDeliveredOrderQuery, parameters);
+        });
+    }
+
+    public static Dictionary<string, object?> BuildUpsertDeliveredOrderParameters(
+        DeliveredOrderGraphUpdate update)
+    {
         var products = update.Products
             .Where(product => !string.IsNullOrWhiteSpace(product.ProductId))
-            .Select(product => new Dictionary<string, object>
+            .Select(product => new Dictionary<string, object?>
             {
                 ["productId"] = product.ProductId,
+                ["quantity"] = product.Quantity > 0 ? product.Quantity : 1,
+                ["productNameSnapshot"] = string.IsNullOrWhiteSpace(product.ProductNameSnapshot)
+                    ? null
+                    : product.ProductNameSnapshot,
                 ["tags"] = product.Tags
                     .Where(tag => !string.IsNullOrWhiteSpace(tag))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -113,20 +130,21 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
             })
             .ToArray();
 
-        var parameters = new
-        {
-            update.CustomerAccountId,
-            update.RestaurantId,
-            update.BranchId,
-            deliveredAt = update.DeliveredAt,
-            products
-        };
+        return BuildUpsertDeliveredOrderParameters(update, products);
+    }
 
-        await using var session = _driver.AsyncSession();
-        await session.ExecuteWriteAsync(async tx =>
+    private static Dictionary<string, object?> BuildUpsertDeliveredOrderParameters(
+        DeliveredOrderGraphUpdate update,
+        IReadOnlyList<Dictionary<string, object?>> products)
+    {
+        return new Dictionary<string, object?>
         {
-            await tx.RunAsync(UpsertDeliveredOrderQuery, parameters);
-        });
+            ["customerAccountId"] = update.CustomerAccountId,
+            ["restaurantId"] = update.RestaurantId,
+            ["branchId"] = update.BranchId,
+            ["deliveredAt"] = update.DeliveredAt,
+            ["products"] = products
+        };
     }
 
     public async Task<IReadOnlyList<string>> GetPreferredTagsAsync(
@@ -141,7 +159,12 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
         try
         {
             await using var session = _driver.AsyncSession();
-            var cursor = await session.RunAsync(PreferredTagsQuery, new { customerAccountId });
+            var cursor = await session.RunAsync(
+                PreferredTagsQuery,
+                new Dictionary<string, object?>
+                {
+                    ["customerAccountId"] = customerAccountId
+                });
             var records = await cursor.ToListAsync(record => record["name"].As<string>());
 
             return records;
@@ -172,7 +195,10 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
             await using var session = _driver.AsyncSession();
             var cursor = await session.RunAsync(
                 RecommendedRestaurantsByTagsQuery,
-                new { tagNames = normalizedTags });
+                new Dictionary<string, object?>
+                {
+                    ["tagNames"] = normalizedTags
+                });
             var records = await cursor.ToListAsync(record => record["id"].As<string>());
 
             return records;
@@ -196,7 +222,12 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
         try
         {
             await using var session = _driver.AsyncSession();
-            var cursor = await session.RunAsync(AlsoOrderedRestaurantsQuery, new { customerAccountId });
+            var cursor = await session.RunAsync(
+                AlsoOrderedRestaurantsQuery,
+                new Dictionary<string, object?>
+                {
+                    ["customerAccountId"] = customerAccountId
+                });
             var records = await cursor.ToListAsync(record => record["id"].As<string>());
 
             return records;

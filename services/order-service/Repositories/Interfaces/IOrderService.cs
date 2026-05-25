@@ -9,6 +9,10 @@ public interface IOrderService
 
     Task<OrderResponse> GetByIdAsync(string id, CancellationToken cancellationToken = default);
 
+    Task<PublicOrderTrackingResponse> GetPublicTrackingAsync(
+        string publicTrackingCode,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<OrderResponse>> GetByCustomerAccountIdAsync(
         string customerAccountId,
         CancellationToken cancellationToken = default);

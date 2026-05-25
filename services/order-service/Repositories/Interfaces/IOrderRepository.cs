@@ -10,6 +10,10 @@ public interface IOrderRepository
 
     Task<OrderDocument?> FindByIdAsync(string id, CancellationToken cancellationToken = default);
 
+    Task<OrderDocument?> FindByPublicTrackingCodeAsync(
+        string publicTrackingCode,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<OrderDocument>> FindByCustomerAccountIdAsync(
         string customerAccountId,
         CancellationToken cancellationToken = default);

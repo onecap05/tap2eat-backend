@@ -17,6 +17,8 @@ public sealed class OrderDocument
 
     public string BranchId { get; set; } = string.Empty;
 
+    public string? PublicTrackingCode { get; set; }
+
     public List<OrderItem> Items { get; set; } = [];
 
     [BsonRepresentation(BsonType.Decimal128)]

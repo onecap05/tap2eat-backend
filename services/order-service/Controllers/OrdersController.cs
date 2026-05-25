@@ -41,6 +41,19 @@ public sealed class OrdersController : ControllerBase
         return Ok(order);
     }
 
+    [AllowAnonymous]
+    [HttpGet("public/track/{publicTrackingCode}")]
+    public async Task<ActionResult<PublicOrderTrackingResponse>> GetPublicTracking(
+        string publicTrackingCode,
+        CancellationToken cancellationToken)
+    {
+        var order = await _orderService.GetPublicTrackingAsync(
+            publicTrackingCode,
+            cancellationToken);
+
+        return Ok(order);
+    }
+
     [HttpGet("customer/{customerAccountId}")]
     public async Task<ActionResult<IReadOnlyList<OrderResponse>>> GetByCustomerAccountId(
         string customerAccountId,

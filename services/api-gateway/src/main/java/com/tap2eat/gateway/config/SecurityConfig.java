@@ -38,6 +38,10 @@ public class SecurityConfig {
             "/api/customer/**"
     };
 
+    private static final String[] PUBLIC_ORDER_ENDPOINTS = {
+            "/api/orders/public/track/**"
+    };
+
     private static final String[] OWNER_CATALOG_ENDPOINTS = {
             "/api/restaurants/**",
             "/api/branches/**",
@@ -66,6 +70,7 @@ public class SecurityConfig {
                         // Keep only the WebSocket endpoint public temporarily; REST APIs remain protected.
                         .requestMatchers("/ws", "/ws/**").permitAll()
                         .requestMatchers(HttpMethod.GET, PUBLIC_CUSTOMER_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, PUBLIC_ORDER_ENDPOINTS).permitAll()
                         .requestMatchers(OWNER_CATALOG_ENDPOINTS).hasRole(RESTAURANT_OWNER_ROLE)
                         .anyRequest().authenticated()
                 )

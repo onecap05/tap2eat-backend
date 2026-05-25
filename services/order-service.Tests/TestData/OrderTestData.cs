@@ -73,7 +73,8 @@ internal static class OrderTestData
         string restaurantId = "restaurant-1",
         string branchId = "branch-1",
         OrderStatus status = OrderStatus.Created,
-        DateTime? createdAt = null)
+        DateTime? createdAt = null,
+        string? publicTrackingCode = "public-code-1")
     {
         var now = createdAt ?? DateTime.UtcNow;
 
@@ -83,6 +84,7 @@ internal static class OrderTestData
             CustomerAccountId = customerAccountId,
             RestaurantId = restaurantId,
             BranchId = branchId,
+            PublicTrackingCode = publicTrackingCode,
             Items =
             [
                 new OrderItem

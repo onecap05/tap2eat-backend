@@ -58,6 +58,22 @@ public sealed class OrderServiceImpl : IOrderService
         return OrderMapper.ToResponse(order);
     }
 
+    public async Task<PublicOrderTrackingResponse> GetPublicTrackingAsync(
+        string publicTrackingCode,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await _orderRepository.FindByPublicTrackingCodeAsync(
+            publicTrackingCode,
+            cancellationToken);
+
+        if (order is null)
+        {
+            throw new OrderNotFoundException(publicTrackingCode);
+        }
+
+        return OrderMapper.ToPublicTrackingResponse(order);
+    }
+
     public async Task<IReadOnlyList<OrderResponse>> GetByCustomerAccountIdAsync(
         string customerAccountId,
         CancellationToken cancellationToken = default)

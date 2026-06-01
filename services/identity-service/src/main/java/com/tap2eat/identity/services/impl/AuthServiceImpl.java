@@ -29,6 +29,10 @@ import org.springframework.context.MessageSource;
 import com.tap2eat.identity.models.AccountProfile;
 
 import java.util.Locale;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AuthServiceImpl implements IAuthService {
@@ -42,6 +46,12 @@ public class AuthServiceImpl implements IAuthService {
     private final IPasswordResetCodeService passwordResetCodeService;
     private final MessageSource messageSource;
     private static final String TOKEN_TYPE_BEARER = "Bearer";
+    private static final int VERIFICATION_CODE_BOUND = 1_000_000;
+    private static final long PENDING_REGISTRATION_EXPIRATION_SECONDS = 600;
+
+    private final SecureRandom secureRandom = new SecureRandom();
+    private final Map<String, PendingRegistration> pendingRegistrationsByCode = new ConcurrentHashMap<>();
+    private final Map<String, PendingRegistration> pendingRegistrationsByEmail = new ConcurrentHashMap<>();
 
     @Value("${auth.password.min-length}")
     private int passwordMinLength;
@@ -65,44 +75,52 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
-    public RegisterResponse registerAccount(RegisterRequest request) {
-        String normalizedEmail = normalizeEmail(request.getEmail());
+public RegisterResponse registerAccount(RegisterRequest request) {
+    String normalizedEmail = normalizeEmail(request.getEmail());
 
-        if (accountRepository.existsByEmail(normalizedEmail)) {
-            throw new EmailAlreadyRegisteredException(getMessage("auth.email.already.registered"));
-        }
-
-        validatePasswordStrength(request.getPassword());
-        Role validatedRole = validateRole(request.getRole());
-
-        Account newAccount = new Account();
-        newAccount.setEmail(normalizedEmail);
-        newAccount.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        newAccount.setRole(validatedRole);
-        newAccount.setEmailVerified(false);
-        newAccount.setIsActive(true);
-
-        AccountProfile accountProfile = new AccountProfile();
-        accountProfile.setAccount(newAccount);
-        accountProfile.setFirstName(request.getFirstName().trim());
-        accountProfile.setLastName(request.getLastName().trim());
-        accountProfile.setPhone(request.getPhone() != null && !request.getPhone().trim().isEmpty()
-                ? request.getPhone().trim()
-                : null);
-
-        newAccount.setProfile(accountProfile);
-
-        Account savedAccount = accountRepository.save(newAccount);
-        EmailVerificationCode verificationCode = emailVerificationCodeService.createCode(savedAccount);
-        notificationGrpcClient.sendVerificationEmail(savedAccount.getEmail(), verificationCode.getCode());
-
-        return new RegisterResponse(
-                savedAccount.getId(),
-                savedAccount.getEmail(),
-                savedAccount.getRole().name(),
-                getMessage("auth.account.created.verify")
-        );
+    if (accountRepository.existsByEmail(normalizedEmail)) {
+        throw new EmailAlreadyRegisteredException(getMessage("auth.email.already.registered"));
     }
+
+    validatePasswordStrength(request.getPassword());
+    Role validatedRole = validateRole(request.getRole());
+
+    String verificationCode = generateVerificationCode();
+
+    PendingRegistration previousPendingRegistration = pendingRegistrationsByEmail.remove(normalizedEmail);
+
+    if (previousPendingRegistration != null) {
+        pendingRegistrationsByCode.remove(previousPendingRegistration.verificationCode());
+    }
+
+    PendingRegistration pendingRegistration = new PendingRegistration(
+            normalizedEmail,
+            passwordEncoder.encode(request.getPassword()),
+            validatedRole,
+            request.getFirstName().trim(),
+            request.getLastName().trim(),
+            request.getPhone() != null && !request.getPhone().trim().isEmpty()
+                    ? request.getPhone().trim()
+                    : null,
+            verificationCode,
+            Instant.now().plusSeconds(PENDING_REGISTRATION_EXPIRATION_SECONDS)
+    );
+
+    pendingRegistrationsByCode.put(verificationCode, pendingRegistration);
+    pendingRegistrationsByEmail.put(normalizedEmail, pendingRegistration);
+
+    notificationGrpcClient.sendVerificationEmail(
+            pendingRegistration.email(),
+            pendingRegistration.verificationCode()
+    );
+
+    return new RegisterResponse(
+            null,
+            pendingRegistration.email(),
+            pendingRegistration.role().name(),
+            getMessage("auth.account.created.verify")
+    );
+}
 
     @Override
     public LoginResponse login(LoginRequest request) {
@@ -216,19 +234,41 @@ public class AuthServiceImpl implements IAuthService {
 
         Account account = accountRepository.findByEmail(normalizedEmail).orElse(null);
 
-        if (account == null) {
-            return new ResendVerificationCodeResponse(getMessage("auth.verification.code.resent"));
-        }
-
-        if (Boolean.TRUE.equals(account.getEmailVerified())) {
+        if (account != null && Boolean.TRUE.equals(account.getEmailVerified())) {
             return new ResendVerificationCodeResponse(getMessage("auth.email.already.verified"));
         }
 
-        EmailVerificationCode verificationCode = emailVerificationCodeService.createCode(account);
+        PendingRegistration currentPendingRegistration = pendingRegistrationsByEmail.get(normalizedEmail);
+
+        if (currentPendingRegistration == null || isPendingRegistrationExpired(currentPendingRegistration)) {
+            if (currentPendingRegistration != null) {
+                removePendingRegistration(currentPendingRegistration);
+            }
+
+            return new ResendVerificationCodeResponse(getMessage("auth.verification.code.resent"));
+        }
+
+        pendingRegistrationsByCode.remove(currentPendingRegistration.verificationCode());
+
+        String verificationCode = generateVerificationCode();
+
+        PendingRegistration updatedPendingRegistration = new PendingRegistration(
+                currentPendingRegistration.email(),
+                currentPendingRegistration.passwordHash(),
+                currentPendingRegistration.role(),
+                currentPendingRegistration.firstName(),
+                currentPendingRegistration.lastName(),
+                currentPendingRegistration.phone(),
+                verificationCode,
+                Instant.now().plusSeconds(PENDING_REGISTRATION_EXPIRATION_SECONDS)
+        );
+
+        pendingRegistrationsByCode.put(verificationCode, updatedPendingRegistration);
+        pendingRegistrationsByEmail.put(normalizedEmail, updatedPendingRegistration);
 
         notificationGrpcClient.sendVerificationEmail(
-                account.getEmail(),
-                verificationCode.getCode()
+                updatedPendingRegistration.email(),
+                updatedPendingRegistration.verificationCode()
         );
 
         return new ResendVerificationCodeResponse(getMessage("auth.verification.code.resent"));
@@ -252,13 +292,38 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     @Transactional
     public VerifyEmailResponse verifyEmail(VerifyEmailRequest request) {
-        EmailVerificationCode verificationCode = emailVerificationCodeService.validateCode(request.getCode());
+        PendingRegistration pendingRegistration = pendingRegistrationsByCode.get(request.getCode());
 
-        Account account = verificationCode.getAccount();
-        account.setEmailVerified(true);
-        accountRepository.save(account);
+        if (pendingRegistration == null || isPendingRegistrationExpired(pendingRegistration)) {
+            if (pendingRegistration != null) {
+                removePendingRegistration(pendingRegistration);
+            }
 
-        emailVerificationCodeService.markAsUsed(verificationCode);
+            throw new InvalidCredentialsException(getMessage("auth.verification.request.invalid"));
+        }
+
+        if (accountRepository.existsByEmail(pendingRegistration.email())) {
+            removePendingRegistration(pendingRegistration);
+            throw new EmailAlreadyRegisteredException(getMessage("auth.email.already.registered"));
+        }
+
+        Account newAccount = new Account();
+        newAccount.setEmail(pendingRegistration.email());
+        newAccount.setPasswordHash(pendingRegistration.passwordHash());
+        newAccount.setRole(pendingRegistration.role());
+        newAccount.setEmailVerified(true);
+        newAccount.setIsActive(true);
+
+        AccountProfile accountProfile = new AccountProfile();
+        accountProfile.setAccount(newAccount);
+        accountProfile.setFirstName(pendingRegistration.firstName());
+        accountProfile.setLastName(pendingRegistration.lastName());
+        accountProfile.setPhone(pendingRegistration.phone());
+
+        newAccount.setProfile(accountProfile);
+
+        accountRepository.save(newAccount);
+        removePendingRegistration(pendingRegistration);
 
         return new VerifyEmailResponse(getMessage("auth.email.verified.success"));
     }
@@ -312,6 +377,25 @@ public class AuthServiceImpl implements IAuthService {
         }
     }
 
+    private String generateVerificationCode() {
+        String code;
+
+        do {
+            code = String.format("%06d", secureRandom.nextInt(VERIFICATION_CODE_BOUND));
+        } while (pendingRegistrationsByCode.containsKey(code));
+
+        return code;
+    }
+
+    private boolean isPendingRegistrationExpired(PendingRegistration pendingRegistration) {
+        return Instant.now().isAfter(pendingRegistration.expiresAt());
+    }
+
+    private void removePendingRegistration(PendingRegistration pendingRegistration) {
+        pendingRegistrationsByCode.remove(pendingRegistration.verificationCode());
+        pendingRegistrationsByEmail.remove(pendingRegistration.email());
+    }
+
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase();
     }
@@ -323,4 +407,16 @@ public class AuthServiceImpl implements IAuthService {
     private String getMessage(String key, Object... args) {
         return messageSource.getMessage(key, args, Locale.getDefault());
     }
+
+    private record PendingRegistration(
+        String email,
+        String passwordHash,
+        Role role,
+        String firstName,
+        String lastName,
+        String phone,
+        String verificationCode,
+        Instant expiresAt
+) {
+}
 }

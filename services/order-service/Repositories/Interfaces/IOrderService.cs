@@ -5,33 +5,33 @@ namespace OrderService.Services.Interfaces;
 
 public interface IOrderService
 {
-    Task<OrderResponse> CreateAsync(CreateOrderRequest request, CancellationToken cancellationToken = default);
+    Task<OrderResponse> CreateOrderAsync(CreateOrderRequest request, CancellationToken cancellationToken = default);
 
-    Task<OrderResponse> GetByIdAsync(string id, CancellationToken cancellationToken = default);
+    Task<OrderResponse> GetOrderByIdAsync(string id, CancellationToken cancellationToken = default);
 
-    Task<PublicOrderTrackingResponse> GetPublicTrackingAsync(
+    Task<PublicOrderTrackingResponse> GetOrderPublicTrackingAsync(
         string publicTrackingCode,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<OrderResponse>> GetByCustomerAccountIdAsync(
+    Task<IReadOnlyList<OrderResponse>> GetOrderByCustomerAccountIdAsync(
         string customerAccountId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<OrderResponse>> GetByCustomerAccountIdAsync(
+    Task<IReadOnlyList<OrderResponse>> GetOrderByCustomerAccountIdAsync(
         string customerAccountId,
         OrderQueryRequest query,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<OrderResponse>> GetByRestaurantIdAsync(
+    Task<IReadOnlyList<OrderResponse>> GetOrderByRestaurantIdAsync(
         string restaurantId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<OrderResponse>> GetByRestaurantIdAsync(
+    Task<IReadOnlyList<OrderResponse>> GetOrderByRestaurantIdAsync(
         string restaurantId,
         OrderQueryRequest query,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<OrderResponse>> GetByBranchIdAsync(
+    Task<IReadOnlyList<OrderResponse>> GetOrderByBranchIdAsync(
         string branchId,
         OrderQueryRequest query,
         CancellationToken cancellationToken = default);

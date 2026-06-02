@@ -57,6 +57,8 @@ class NotificationServiceImplTest {
                 "branch-2",
                 "CREATED",
                 "CONFIRMED",
+                20,
+                "2026-05-22T10:40:31Z",
                 "2026-05-22T10:20:31Z"
         );
 

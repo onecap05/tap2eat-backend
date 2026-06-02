@@ -7,4 +7,6 @@ public sealed class UpdateOrderStatusRequest
 {
     [Required]
     public OrderStatus? Status { get; set; }
+
+    public int? EstimatedPreparationMinutes { get; set; }
 }

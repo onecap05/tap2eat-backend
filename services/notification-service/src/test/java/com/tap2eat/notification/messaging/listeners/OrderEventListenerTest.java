@@ -3,13 +3,17 @@ package com.tap2eat.notification.messaging.listeners;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tap2eat.notification.messaging.events.OrderCreatedEvent;
 import com.tap2eat.notification.messaging.events.OrderStatusChangedEvent;
+import com.tap2eat.notification.realtime.RealtimeEventPublisherImpl;
+import com.tap2eat.notification.realtime.messages.RealtimeOrderEventMessage;
 import com.tap2eat.notification.services.INotificationService;
+import com.tap2eat.notification.services.impl.NotificationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.math.BigDecimal;
 
@@ -18,6 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class OrderEventListenerTest {
@@ -81,6 +88,8 @@ class OrderEventListenerTest {
                   "BranchId": "branch-2",
                   "PreviousStatus": "CREATED",
                   "NewStatus": "CONFIRMED",
+                  "EstimatedPreparationMinutes": 20,
+                  "EstimatedReadyAt": "2026-05-22T10:40:31Z",
                   "OccurredAt": "2026-05-22T10:20:31Z"
                 }
                 """;
@@ -99,7 +108,63 @@ class OrderEventListenerTest {
         assertEquals("branch-2", event.branchId());
         assertEquals("CREATED", event.previousStatus());
         assertEquals("CONFIRMED", event.newStatus());
+        assertEquals(20, event.estimatedPreparationMinutes());
+        assertEquals("2026-05-22T10:40:31Z", event.estimatedReadyAt());
         assertEquals("2026-05-22T10:20:31Z", event.occurredAt());
+    }
+
+    @Test
+    void whenOrderStatusChangedEventContainsItems_shouldPublishRealtimeOrderTopics() {
+        SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
+        OrderEventListener realtimeListener = new OrderEventListener(
+                new ObjectMapper(),
+                new NotificationServiceImpl(new RealtimeEventPublisherImpl(messagingTemplate))
+        );
+        String rawMessage = """
+                {
+                  "EventId": "event-3",
+                  "EventType": "order.status.changed",
+                  "OrderId": "order-3",
+                  "CustomerAccountId": "customer-3",
+                  "RestaurantId": "restaurant-3",
+                  "BranchId": "branch-3",
+                  "PreviousStatus": "Created",
+                  "NewStatus": "Accepted",
+                  "EstimatedPreparationMinutes": 20,
+                  "EstimatedReadyAt": "2026-05-22T10:40:31Z",
+                  "Items": [
+                    {
+                      "ProductId": "product-1",
+                      "Quantity": 2,
+                      "ProductNameSnapshot": "Taco"
+                    }
+                  ],
+                  "OccurredAt": "2026-05-22T10:20:31Z"
+                }
+                """;
+
+        realtimeListener.handleOrderEvent(rawMessage);
+
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/customers/customer-3/orders"),
+                any(RealtimeOrderEventMessage.class)
+        );
+        ArgumentCaptor<RealtimeOrderEventMessage> messageCaptor = ArgumentCaptor.forClass(RealtimeOrderEventMessage.class);
+        verify(messagingTemplate).convertAndSend(
+                eq("/topic/restaurants/restaurant-3/orders"),
+                messageCaptor.capture()
+        );
+        RealtimeOrderEventMessage message = messageCaptor.getValue();
+        assertEquals("order.status.changed", message.eventType());
+        assertEquals("order-3", message.orderId());
+        assertEquals("customer-3", message.customerAccountId());
+        assertEquals("restaurant-3", message.restaurantId());
+        assertEquals("Accepted", message.status());
+        assertEquals("Accepted", message.newStatus());
+        assertEquals("Created", message.previousStatus());
+        assertEquals(20, message.estimatedPreparationMinutes());
+        assertEquals("2026-05-22T10:40:31Z", message.estimatedReadyAt());
+        assertEquals("2026-05-22T10:20:31Z", message.occurredAt());
     }
 
     @Test

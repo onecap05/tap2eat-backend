@@ -75,6 +75,8 @@ public static class OrderMapper
             Subtotal = document.Subtotal,
             Total = document.Total,
             Status = document.Status,
+            EstimatedPreparationMinutes = document.EstimatedPreparationMinutes,
+            EstimatedReadyAt = document.EstimatedReadyAt,
             Notes = document.Notes,
             CreatedAt = document.CreatedAt,
             UpdatedAt = document.UpdatedAt
@@ -88,6 +90,8 @@ public static class OrderMapper
             PublicTrackingCode = document.PublicTrackingCode ?? string.Empty,
             ShortOrderId = GetShortOrderId(document.Id),
             Status = document.Status,
+            EstimatedPreparationMinutes = document.EstimatedPreparationMinutes,
+            EstimatedReadyAt = document.EstimatedReadyAt,
             RestaurantNameSnapshot = null,
             BranchNameSnapshot = null,
             Items = document.Items.Select(ToPublicTrackingItemResponse).ToList(),

@@ -25,7 +25,7 @@ public class NotificationServiceImpl implements INotificationService {
     @Override
     public void handleOrderCreated(OrderCreatedEvent event) {
         log.info(
-                "Simulated notification for order.created: orderId={}, customerAccountId={}, restaurantId={}, branchId={}, total={}, status={}",
+                "Publishing realtime notification for order.created: orderId={}, customerAccountId={}, restaurantId={}, branchId={}, total={}, status={}",
                 event.orderId(),
                 event.customerAccountId(),
                 event.restaurantId(),
@@ -39,7 +39,7 @@ public class NotificationServiceImpl implements INotificationService {
     @Override
     public void handleOrderStatusChanged(OrderStatusChangedEvent event) {
         log.info(
-                "Simulated notification for order.status.changed: orderId={}, customerAccountId={}, restaurantId={}, previousStatus={}, newStatus={}",
+                "Publishing realtime notification for order.status.changed: orderId={}, customerAccountId={}, restaurantId={}, previousStatus={}, newStatus={}",
                 event.orderId(),
                 event.customerAccountId(),
                 event.restaurantId(),
@@ -52,7 +52,7 @@ public class NotificationServiceImpl implements INotificationService {
     @Override
     public void handlePaymentApproved(PaymentApprovedEvent event) {
         log.info(
-                "Simulated notification for payment.approved: paymentId={}, orderId={}, customerAccountId={}, amount={}, providerReference={}",
+                "Publishing realtime notification for payment.approved: paymentId={}, orderId={}, customerAccountId={}, amount={}, providerReference={}",
                 event.paymentId(),
                 event.orderId(),
                 event.customerAccountId(),
@@ -65,7 +65,7 @@ public class NotificationServiceImpl implements INotificationService {
     @Override
     public void handlePaymentRejected(PaymentRejectedEvent event) {
         log.info(
-                "Simulated notification for payment.rejected: paymentId={}, orderId={}, customerAccountId={}, amount={}, rejectionReason={}",
+                "Publishing realtime notification for payment.rejected: paymentId={}, orderId={}, customerAccountId={}, amount={}, rejectionReason={}",
                 event.paymentId(),
                 event.orderId(),
                 event.customerAccountId(),
@@ -78,7 +78,7 @@ public class NotificationServiceImpl implements INotificationService {
     @Override
     public void handlePaymentCancelled(PaymentCancelledEvent event) {
         log.info(
-                "Simulated notification for payment.cancelled: paymentId={}, orderId={}, customerAccountId={}, amount={}, reason={}",
+                "Publishing realtime notification for payment.cancelled: paymentId={}, orderId={}, customerAccountId={}, amount={}, reason={}",
                 event.paymentId(),
                 event.orderId(),
                 event.customerAccountId(),

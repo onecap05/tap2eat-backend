@@ -74,7 +74,9 @@ internal static class OrderTestData
         string branchId = "branch-1",
         OrderStatus status = OrderStatus.Created,
         DateTime? createdAt = null,
-        string? publicTrackingCode = "public-code-1")
+        string? publicTrackingCode = "public-code-1",
+        int? estimatedPreparationMinutes = null,
+        DateTime? estimatedReadyAt = null)
     {
         var now = createdAt ?? DateTime.UtcNow;
 
@@ -100,6 +102,8 @@ internal static class OrderTestData
             Subtotal = 50,
             Total = 50,
             Status = status,
+            EstimatedPreparationMinutes = estimatedPreparationMinutes,
+            EstimatedReadyAt = estimatedReadyAt,
             Notes = "No onion",
             CreatedAt = now,
             UpdatedAt = now

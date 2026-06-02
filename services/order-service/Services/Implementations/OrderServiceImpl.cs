@@ -13,6 +13,8 @@ namespace OrderService.Services.Implementations;
 
 public sealed class OrderServiceImpl : IOrderService
 {
+    private const int MaxEstimatedPreparationMinutes = 240;
+
     private readonly IOrderRepository _orderRepository;
     private readonly ICatalogClient _catalogClient;
     private readonly IOrderEventPublisher _orderEventPublisher;
@@ -27,7 +29,7 @@ public sealed class OrderServiceImpl : IOrderService
         _orderEventPublisher = orderEventPublisher;
     }
 
-    public async Task<OrderResponse> CreateAsync(
+    public async Task<OrderResponse> CreateOrderAsync(
         CreateOrderRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -44,7 +46,7 @@ public sealed class OrderServiceImpl : IOrderService
         return response;
     }
 
-    public async Task<OrderResponse> GetByIdAsync(
+    public async Task<OrderResponse> GetOrderByIdAsync(
         string id,
         CancellationToken cancellationToken = default)
     {
@@ -58,7 +60,7 @@ public sealed class OrderServiceImpl : IOrderService
         return OrderMapper.ToResponse(order);
     }
 
-    public async Task<PublicOrderTrackingResponse> GetPublicTrackingAsync(
+    public async Task<PublicOrderTrackingResponse> GetOrderPublicTrackingAsync(
         string publicTrackingCode,
         CancellationToken cancellationToken = default)
     {
@@ -74,17 +76,17 @@ public sealed class OrderServiceImpl : IOrderService
         return OrderMapper.ToPublicTrackingResponse(order);
     }
 
-    public async Task<IReadOnlyList<OrderResponse>> GetByCustomerAccountIdAsync(
+    public async Task<IReadOnlyList<OrderResponse>> GetOrderByCustomerAccountIdAsync(
         string customerAccountId,
         CancellationToken cancellationToken = default)
     {
-        return await GetByCustomerAccountIdAsync(
+        return await GetOrderByCustomerAccountIdAsync(
             customerAccountId,
             new OrderQueryRequest(),
             cancellationToken);
     }
 
-    public async Task<IReadOnlyList<OrderResponse>> GetByCustomerAccountIdAsync(
+    public async Task<IReadOnlyList<OrderResponse>> GetOrderByCustomerAccountIdAsync(
         string customerAccountId,
         OrderQueryRequest query,
         CancellationToken cancellationToken = default)
@@ -101,17 +103,17 @@ public sealed class OrderServiceImpl : IOrderService
             .ToList();
     }
 
-    public async Task<IReadOnlyList<OrderResponse>> GetByRestaurantIdAsync(
+    public async Task<IReadOnlyList<OrderResponse>> GetOrderByRestaurantIdAsync(
         string restaurantId,
         CancellationToken cancellationToken = default)
     {
-        return await GetByRestaurantIdAsync(
+        return await GetOrderByRestaurantIdAsync(
             restaurantId,
             new OrderQueryRequest(),
             cancellationToken);
     }
 
-    public async Task<IReadOnlyList<OrderResponse>> GetByRestaurantIdAsync(
+    public async Task<IReadOnlyList<OrderResponse>> GetOrderByRestaurantIdAsync(
         string restaurantId,
         OrderQueryRequest query,
         CancellationToken cancellationToken = default)
@@ -128,7 +130,7 @@ public sealed class OrderServiceImpl : IOrderService
             .ToList();
     }
 
-    public async Task<IReadOnlyList<OrderResponse>> GetByBranchIdAsync(
+    public async Task<IReadOnlyList<OrderResponse>> GetOrderByBranchIdAsync(
         string branchId,
         OrderQueryRequest query,
         CancellationToken cancellationToken = default)
@@ -159,6 +161,12 @@ public sealed class OrderServiceImpl : IOrderService
 
         var requestedStatus = request.Status!.Value;
         var previousStatus = order.Status.ToString();
+        var updatedAt = DateTime.UtcNow;
+        var requestedPreparationMinutes = GetEstimatedPreparationMinutes(request, requestedStatus);
+        var estimatedPreparationMinutes = requestedPreparationMinutes ?? order.EstimatedPreparationMinutes;
+        var estimatedReadyAt = requestedPreparationMinutes.HasValue
+            ? updatedAt.AddMinutes(requestedPreparationMinutes.Value)
+            : order.EstimatedReadyAt;
 
         if (!CanTransition(order.Status, requestedStatus))
         {
@@ -168,7 +176,9 @@ public sealed class OrderServiceImpl : IOrderService
         var updatedOrder = await _orderRepository.UpdateStatusAsync(
             id,
             requestedStatus,
-            DateTime.UtcNow,
+            estimatedPreparationMinutes,
+            estimatedReadyAt,
+            updatedAt,
             cancellationToken);
 
         if (updatedOrder is null)
@@ -198,5 +208,32 @@ public sealed class OrderServiceImpl : IOrderService
             OrderStatus.Cancelled => false,
             _ => false
         };
+    }
+
+    private static int? GetEstimatedPreparationMinutes(
+        UpdateOrderStatusRequest request,
+        OrderStatus requestedStatus)
+    {
+        if (!request.EstimatedPreparationMinutes.HasValue)
+        {
+            return null;
+        }
+
+        if (requestedStatus is not OrderStatus.Accepted)
+        {
+            throw new OrderValidationException("Estimated preparation time can only be provided when accepting an order.");
+        }
+
+        if (request.EstimatedPreparationMinutes <= 0)
+        {
+            throw new OrderValidationException("Estimated preparation time must be greater than zero.");
+        }
+
+        if (request.EstimatedPreparationMinutes > MaxEstimatedPreparationMinutes)
+        {
+            throw new OrderValidationException($"Estimated preparation time cannot exceed {MaxEstimatedPreparationMinutes} minutes.");
+        }
+
+        return request.EstimatedPreparationMinutes.Value;
     }
 }

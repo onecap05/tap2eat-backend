@@ -40,6 +40,8 @@ public interface IOrderRepository
     Task<OrderDocument?> UpdateStatusAsync(
         string id,
         OrderStatus status,
+        int? estimatedPreparationMinutes,
+        DateTime? estimatedReadyAt,
         DateTime updatedAt,
         CancellationToken cancellationToken = default);
 }

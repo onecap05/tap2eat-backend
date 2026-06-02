@@ -92,6 +92,8 @@ internal sealed class InMemoryOrderRepository : IOrderRepository
     public Task<OrderDocument?> UpdateStatusAsync(
         string id,
         OrderStatus status,
+        int? estimatedPreparationMinutes,
+        DateTime? estimatedReadyAt,
         DateTime updatedAt,
         CancellationToken cancellationToken = default)
     {
@@ -103,6 +105,8 @@ internal sealed class InMemoryOrderRepository : IOrderRepository
         }
 
         order.Status = status;
+        order.EstimatedPreparationMinutes = estimatedPreparationMinutes;
+        order.EstimatedReadyAt = estimatedReadyAt;
         order.UpdatedAt = updatedAt;
 
         return Task.FromResult<OrderDocument?>(order);

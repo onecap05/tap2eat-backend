@@ -18,6 +18,10 @@ public sealed class OrderStatusChangedEvent
 
     public string NewStatus { get; set; } = string.Empty;
 
+    public int? EstimatedPreparationMinutes { get; set; }
+
+    public DateTime? EstimatedReadyAt { get; set; }
+
     public List<OrderStatusChangedItemEvent> Items { get; set; } = [];
 
     public DateTime OccurredAt { get; set; } = DateTime.UtcNow;

@@ -33,6 +33,9 @@ public class RealtimeEventPublisherImpl implements IRealtimeEventPublisher {
                 event.restaurantId(),
                 event.branchId(),
                 event.status(),
+                event.status(),
+                null,
+                null,
                 null,
                 event.total(),
                 event.occurredAt()
@@ -50,7 +53,10 @@ public class RealtimeEventPublisherImpl implements IRealtimeEventPublisher {
                 event.restaurantId(),
                 event.branchId(),
                 event.newStatus(),
+                event.newStatus(),
                 event.previousStatus(),
+                event.estimatedPreparationMinutes(),
+                event.estimatedReadyAt(),
                 null,
                 event.occurredAt()
         );

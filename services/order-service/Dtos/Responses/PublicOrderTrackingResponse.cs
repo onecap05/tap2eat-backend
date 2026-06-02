@@ -10,6 +10,10 @@ public sealed class PublicOrderTrackingResponse
 
     public OrderStatus Status { get; set; }
 
+    public int? EstimatedPreparationMinutes { get; set; }
+
+    public DateTime? EstimatedReadyAt { get; set; }
+
     public string? RestaurantNameSnapshot { get; set; }
 
     public string? BranchNameSnapshot { get; set; }

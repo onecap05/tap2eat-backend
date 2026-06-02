@@ -119,6 +119,8 @@ public sealed class OrderRepository : IOrderRepository
     public async Task<OrderDocument?> UpdateStatusAsync(
         string id,
         OrderStatus status,
+        int? estimatedPreparationMinutes,
+        DateTime? estimatedReadyAt,
         DateTime updatedAt,
         CancellationToken cancellationToken = default)
     {
@@ -129,6 +131,8 @@ public sealed class OrderRepository : IOrderRepository
 
         var update = Builders<OrderDocument>.Update
             .Set(order => order.Status, status)
+            .Set(order => order.EstimatedPreparationMinutes, estimatedPreparationMinutes)
+            .Set(order => order.EstimatedReadyAt, estimatedReadyAt)
             .Set(order => order.UpdatedAt, updatedAt);
 
         return await _orders.FindOneAndUpdateAsync(

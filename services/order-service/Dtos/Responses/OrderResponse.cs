@@ -22,6 +22,10 @@ public sealed class OrderResponse
 
     public OrderStatus Status { get; set; }
 
+    public int? EstimatedPreparationMinutes { get; set; }
+
+    public DateTime? EstimatedReadyAt { get; set; }
+
     public string? Notes { get; set; }
 
     public DateTime CreatedAt { get; set; }

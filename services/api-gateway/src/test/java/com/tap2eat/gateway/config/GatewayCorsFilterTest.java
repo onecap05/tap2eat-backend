@@ -1,12 +1,18 @@
 package com.tap2eat.gateway.config;
 
-import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
+import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 class GatewayCorsFilterTest {
 
@@ -14,40 +20,65 @@ class GatewayCorsFilterTest {
 
     @Test
     void shouldAllowSimulatedPaymentTokenHeaderForAllowedOrigin() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/payments/payment-1/approve");
-        request.addHeader("Origin", "http://localhost:4200");
-        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.options("/api/payments/payment-1/approve")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
+        );
 
-        filter.doFilter(request, response, mock(FilterChain.class));
+        filter.filter(exchange, exchangeToContinue -> Mono.empty()).block();
 
-        assertThat(response.getHeader("Access-Control-Allow-Headers"))
+        assertThat(exchange.getResponse().getHeaders().getFirst(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS))
                 .contains("Authorization")
                 .contains("Content-Type")
                 .contains("Accept")
                 .contains("Origin")
                 .contains("X-Simulated-Payment-Token");
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
-    void shouldAllowCorsPreflightForWebSocketSockJsInfoEndpoint() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/ws/info");
-        request.addHeader("Origin", "http://localhost:4200");
-        MockHttpServletResponse response = new MockHttpServletResponse();
+    void shouldSkipCorsHeadersForWebSocketSockJsInfoEndpoint() throws Exception {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.options("/ws/info")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
+        );
+        RecordingWebFilterChain filterChain = new RecordingWebFilterChain();
 
-        filter.doFilter(request, response, mock(FilterChain.class));
+        filter.filter(exchange, filterChain).block();
 
-        assertThat(response.getStatus()).isEqualTo(200);
-        assertThat(response.getHeader("Access-Control-Allow-Origin"))
-                .isEqualTo("http://localhost:4200");
-        assertThat(response.getHeader("Access-Control-Allow-Methods"))
-                .contains("GET")
-                .contains("POST")
-                .contains("OPTIONS");
-        assertThat(response.getHeader("Access-Control-Allow-Headers"))
-                .contains("Authorization")
-                .contains("Content-Type")
-                .contains("Accept")
-                .contains("Origin")
-                .contains("X-Simulated-Payment-Token");
+        assertThat(exchange.getResponse().getHeaders().getFirst(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN)).isNull();
+        assertThat(exchange.getResponse().getHeaders().getFirst(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS)).isNull();
+        assertThat(exchange.getResponse().getHeaders().getFirst(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS)).isNull();
+        assertThat(filterChain.wasCalled()).isTrue();
+    }
+
+    @Test
+    void shouldSkipCorsHeadersForNativeWebSocketTransport() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.method(HttpMethod.GET, "/ws/123/session-id/websocket")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:4200")
+                        .header(HttpHeaders.UPGRADE, "websocket")
+        );
+        RecordingWebFilterChain filterChain = new RecordingWebFilterChain();
+
+        filter.filter(exchange, filterChain).block();
+
+        assertThat(exchange.getResponse().getHeaders().getFirst(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN)).isNull();
+        assertThat(filterChain.wasCalled()).isTrue();
+    }
+
+    private static class RecordingWebFilterChain implements WebFilterChain {
+
+        private final AtomicBoolean called = new AtomicBoolean();
+
+        @Override
+        public Mono<Void> filter(ServerWebExchange exchange) {
+            called.set(true);
+            return Mono.empty();
+        }
+
+        boolean wasCalled() {
+            return called.get();
+        }
     }
 }

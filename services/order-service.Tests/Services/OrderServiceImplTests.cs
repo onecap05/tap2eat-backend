@@ -19,7 +19,7 @@ public sealed class OrderServiceImplTests
         var service = new OrderServiceImpl(repository, catalogClient, eventPublisher);
         var request = OrderTestData.CreateOrderRequest();
 
-        var response = await service.CreateAsync(request);
+        var response = await service.CreateOrderAsync(request);
 
         catalogClient.Calls.Should().Be(1);
         eventPublisher.OrderCreatedCalls.Should().Be(1);
@@ -44,7 +44,7 @@ public sealed class OrderServiceImplTests
         var request = OrderTestData.CreateOrderRequest();
         request.Items[0].UnitPriceSnapshot = 1;
 
-        var response = await service.CreateAsync(request);
+        var response = await service.CreateOrderAsync(request);
 
         eventPublisher.OrderCreatedCalls.Should().Be(1);
         response.Items[0].UnitPriceSnapshot.Should().Be(75);
@@ -69,7 +69,7 @@ public sealed class OrderServiceImplTests
         request.Items[0].ProductNameSnapshot = "Client Burger";
         request.Items[0].SelectedModifiers[0].ModifierOptionName = "Client Cheese";
 
-        var response = await service.CreateAsync(request);
+        var response = await service.CreateOrderAsync(request);
 
         eventPublisher.OrderCreatedCalls.Should().Be(1);
         response.Items[0].ProductNameSnapshot.Should().Be("Catalog Burger");
@@ -88,7 +88,7 @@ public sealed class OrderServiceImplTests
             new FakeCatalogClient((_, _) => throw new CatalogValidationException("Invalid product.")),
             eventPublisher);
 
-        var act = async () => await service.CreateAsync(OrderTestData.CreateOrderRequest());
+        var act = async () => await service.CreateOrderAsync(OrderTestData.CreateOrderRequest());
 
         await act.Should().ThrowAsync<CatalogValidationException>();
         repository.Orders.Should().BeEmpty();
@@ -105,7 +105,7 @@ public sealed class OrderServiceImplTests
             new FakeCatalogClient((_, _) => throw new CatalogServiceUnavailableException()),
             eventPublisher);
 
-        var act = async () => await service.CreateAsync(OrderTestData.CreateOrderRequest());
+        var act = async () => await service.CreateOrderAsync(OrderTestData.CreateOrderRequest());
 
         await act.Should().ThrowAsync<CatalogServiceUnavailableException>();
         repository.Orders.Should().BeEmpty();
@@ -118,7 +118,7 @@ public sealed class OrderServiceImplTests
         var order = OrderTestData.OrderDocument();
         var service = CreateService(new InMemoryOrderRepository(order));
 
-        var response = await service.GetByIdAsync(order.Id!);
+        var response = await service.GetOrderByIdAsync(order.Id!);
 
         response.Id.Should().Be(order.Id);
     }
@@ -128,7 +128,7 @@ public sealed class OrderServiceImplTests
     {
         var service = CreateService(new InMemoryOrderRepository());
 
-        var act = async () => await service.GetByIdAsync("missing-order");
+        var act = async () => await service.GetOrderByIdAsync("missing-order");
 
         await act.Should().ThrowAsync<OrderNotFoundException>();
     }
@@ -139,7 +139,7 @@ public sealed class OrderServiceImplTests
         var order = OrderTestData.OrderDocument(publicTrackingCode: "track-code-1");
         var service = CreateService(new InMemoryOrderRepository(order));
 
-        var response = await service.GetPublicTrackingAsync("track-code-1");
+        var response = await service.GetOrderPublicTrackingAsync("track-code-1");
 
         response.PublicTrackingCode.Should().Be("track-code-1");
         response.ShortOrderId.Should().Be(order.Id![^8..].ToUpperInvariant());
@@ -154,7 +154,7 @@ public sealed class OrderServiceImplTests
     {
         var service = CreateService(new InMemoryOrderRepository());
 
-        var act = async () => await service.GetPublicTrackingAsync("missing-tracking-code");
+        var act = async () => await service.GetOrderPublicTrackingAsync("missing-tracking-code");
 
         await act.Should().ThrowAsync<OrderNotFoundException>();
     }
@@ -173,7 +173,7 @@ public sealed class OrderServiceImplTests
         var otherCustomerOrder = OrderTestData.OrderDocument(customerAccountId: "customer-2");
         var service = CreateService(new InMemoryOrderRepository(olderOrder, newerOrder, otherCustomerOrder));
 
-        var responses = await service.GetByCustomerAccountIdAsync("customer-1");
+        var responses = await service.GetOrderByCustomerAccountIdAsync("customer-1");
 
         responses.Should().HaveCount(2);
         responses.Select(order => order.Id).Should().Equal(newerOrder.Id, olderOrder.Id);
@@ -195,7 +195,7 @@ public sealed class OrderServiceImplTests
             eventPublisher,
             catalogClient);
 
-        var responses = await service.GetByCustomerAccountIdAsync(
+        var responses = await service.GetOrderByCustomerAccountIdAsync(
             "customer-filter",
             new OrderQueryRequest { Status = OrderStatus.Accepted });
 
@@ -229,7 +229,7 @@ public sealed class OrderServiceImplTests
             inRangeNewerOrder,
             newerOrder));
 
-        var responses = await service.GetByCustomerAccountIdAsync(
+        var responses = await service.GetOrderByCustomerAccountIdAsync(
             "customer-range",
             new OrderQueryRequest { From = from, To = to });
 
@@ -241,7 +241,7 @@ public sealed class OrderServiceImplTests
     {
         var service = CreateService(new InMemoryOrderRepository());
 
-        var act = async () => await service.GetByCustomerAccountIdAsync(
+        var act = async () => await service.GetOrderByCustomerAccountIdAsync(
             "customer-invalid",
             InvalidDateRangeQuery());
 
@@ -255,7 +255,7 @@ public sealed class OrderServiceImplTests
         var otherRestaurantOrder = OrderTestData.OrderDocument(restaurantId: "restaurant-2");
         var service = CreateService(new InMemoryOrderRepository(restaurantOrder, otherRestaurantOrder));
 
-        var responses = await service.GetByRestaurantIdAsync("restaurant-1");
+        var responses = await service.GetOrderByRestaurantIdAsync("restaurant-1");
 
         responses.Should().ContainSingle();
         responses[0].Id.Should().Be(restaurantOrder.Id);
@@ -272,7 +272,7 @@ public sealed class OrderServiceImplTests
             status: OrderStatus.Accepted);
         var service = CreateService(new InMemoryOrderRepository(createdOrder, acceptedOrder));
 
-        var responses = await service.GetByRestaurantIdAsync(
+        var responses = await service.GetOrderByRestaurantIdAsync(
             "restaurant-filter",
             new OrderQueryRequest { Status = OrderStatus.Accepted });
 
@@ -296,7 +296,7 @@ public sealed class OrderServiceImplTests
             createdAt: to.AddDays(1));
         var service = CreateService(new InMemoryOrderRepository(olderOrder, inRangeOrder, newerOrder));
 
-        var responses = await service.GetByRestaurantIdAsync(
+        var responses = await service.GetOrderByRestaurantIdAsync(
             "restaurant-range",
             new OrderQueryRequest { From = from, To = to });
 
@@ -309,7 +309,7 @@ public sealed class OrderServiceImplTests
     {
         var service = CreateService(new InMemoryOrderRepository());
 
-        var act = async () => await service.GetByRestaurantIdAsync(
+        var act = async () => await service.GetOrderByRestaurantIdAsync(
             "restaurant-invalid",
             InvalidDateRangeQuery());
 
@@ -328,7 +328,7 @@ public sealed class OrderServiceImplTests
         var otherBranchOrder = OrderTestData.OrderDocument(branchId: "other-branch");
         var service = CreateService(new InMemoryOrderRepository(olderOrder, newerOrder, otherBranchOrder));
 
-        var responses = await service.GetByBranchIdAsync(
+        var responses = await service.GetOrderByBranchIdAsync(
             "branch-filter",
             new OrderQueryRequest());
 
@@ -347,7 +347,7 @@ public sealed class OrderServiceImplTests
             status: OrderStatus.Accepted);
         var service = CreateService(new InMemoryOrderRepository(createdOrder, acceptedOrder));
 
-        var responses = await service.GetByBranchIdAsync(
+        var responses = await service.GetOrderByBranchIdAsync(
             "branch-status",
             new OrderQueryRequest { Status = OrderStatus.Accepted });
 
@@ -371,7 +371,7 @@ public sealed class OrderServiceImplTests
             createdAt: to.AddDays(1));
         var service = CreateService(new InMemoryOrderRepository(olderOrder, inRangeOrder, newerOrder));
 
-        var responses = await service.GetByBranchIdAsync(
+        var responses = await service.GetOrderByBranchIdAsync(
             "branch-range",
             new OrderQueryRequest { From = from, To = to });
 
@@ -384,7 +384,7 @@ public sealed class OrderServiceImplTests
     {
         var service = CreateService(new InMemoryOrderRepository());
 
-        var act = async () => await service.GetByBranchIdAsync(
+        var act = async () => await service.GetOrderByBranchIdAsync(
             "branch-invalid",
             InvalidDateRangeQuery());
 
@@ -407,6 +407,122 @@ public sealed class OrderServiceImplTests
         response.UpdatedAt.Should().BeAfter(order.CreatedAt);
         eventPublisher.OrderStatusChangedCalls.Should().Be(1);
         eventPublisher.LastPreviousStatus.Should().Be(OrderStatus.Created.ToString());
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenAcceptedWithEstimatedPreparationTime_ShouldCalculateEstimatedReadyAt()
+    {
+        var order = OrderTestData.OrderDocument(status: OrderStatus.Created);
+        var service = CreateService(new InMemoryOrderRepository(order), new FakeOrderEventPublisher());
+
+        var response = await service.UpdateStatusAsync(
+            order.Id!,
+            new UpdateOrderStatusRequest
+            {
+                Status = OrderStatus.Accepted,
+                EstimatedPreparationMinutes = 20
+            });
+
+        response.Status.Should().Be(OrderStatus.Accepted);
+        response.EstimatedPreparationMinutes.Should().Be(20);
+        response.EstimatedReadyAt.Should().NotBeNull();
+        response.EstimatedReadyAt.Should().BeCloseTo(response.UpdatedAt.AddMinutes(20), TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenAcceptedWithoutEstimatedPreparationTime_ShouldKeepEstimateEmpty()
+    {
+        var order = OrderTestData.OrderDocument(status: OrderStatus.Created);
+        var service = CreateService(new InMemoryOrderRepository(order));
+
+        var response = await service.UpdateStatusAsync(
+            order.Id!,
+            new UpdateOrderStatusRequest { Status = OrderStatus.Accepted });
+
+        response.Status.Should().Be(OrderStatus.Accepted);
+        response.EstimatedPreparationMinutes.Should().BeNull();
+        response.EstimatedReadyAt.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    public async Task UpdateStatusAsync_WhenEstimatedPreparationTimeIsNotPositive_ShouldThrow(int minutes)
+    {
+        var order = OrderTestData.OrderDocument(status: OrderStatus.Created);
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = CreateService(new InMemoryOrderRepository(order), eventPublisher);
+
+        var act = async () => await service.UpdateStatusAsync(
+            order.Id!,
+            new UpdateOrderStatusRequest
+            {
+                Status = OrderStatus.Accepted,
+                EstimatedPreparationMinutes = minutes
+            });
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+        eventPublisher.OrderStatusChangedCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenEstimatedPreparationTimeIsTooHigh_ShouldThrow()
+    {
+        var order = OrderTestData.OrderDocument(status: OrderStatus.Created);
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = CreateService(new InMemoryOrderRepository(order), eventPublisher);
+
+        var act = async () => await service.UpdateStatusAsync(
+            order.Id!,
+            new UpdateOrderStatusRequest
+            {
+                Status = OrderStatus.Accepted,
+                EstimatedPreparationMinutes = 241
+            });
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+        eventPublisher.OrderStatusChangedCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenOtherStatusReceivesEstimatedPreparationTime_ShouldThrow()
+    {
+        var order = OrderTestData.OrderDocument(
+            status: OrderStatus.Accepted,
+            estimatedPreparationMinutes: 15,
+            estimatedReadyAt: DateTime.UtcNow.AddMinutes(15));
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = CreateService(new InMemoryOrderRepository(order), eventPublisher);
+
+        var act = async () => await service.UpdateStatusAsync(
+            order.Id!,
+            new UpdateOrderStatusRequest
+            {
+                Status = OrderStatus.Preparing,
+                EstimatedPreparationMinutes = 10
+            });
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+        eventPublisher.OrderStatusChangedCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_WhenOtherStatusDoesNotReceiveEstimatedPreparationTime_ShouldKeepExistingEstimate()
+    {
+        var estimatedReadyAt = DateTime.UtcNow.AddMinutes(15);
+        var order = OrderTestData.OrderDocument(
+            status: OrderStatus.Accepted,
+            estimatedPreparationMinutes: 15,
+            estimatedReadyAt: estimatedReadyAt);
+        var service = CreateService(new InMemoryOrderRepository(order));
+
+        var response = await service.UpdateStatusAsync(
+            order.Id!,
+            new UpdateOrderStatusRequest { Status = OrderStatus.Preparing });
+
+        response.Status.Should().Be(OrderStatus.Preparing);
+        response.EstimatedPreparationMinutes.Should().Be(15);
+        response.EstimatedReadyAt.Should().Be(estimatedReadyAt);
     }
 
     [Fact]

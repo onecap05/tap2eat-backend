@@ -18,6 +18,7 @@ public class OrderEventListener {
     private static final String ORDER_CREATED_EVENT_TYPE = "order.created";
     private static final String ORDER_STATUS_CHANGED_EVENT_TYPE = "order.status.changed";
     private static final String EVENT_TYPE_PROPERTY = "EventType";
+    private static final String EVENT_TYPE_ALIAS_PROPERTY = "eventType";
 
     private final ObjectMapper objectMapper;
     private final INotificationService notificationService;
@@ -53,6 +54,7 @@ public class OrderEventListener {
 
     private String getEventType(JsonNode payload) {
         JsonNode eventTypeNode = payload.get(EVENT_TYPE_PROPERTY);
+        eventTypeNode = eventTypeNode == null ? payload.get(EVENT_TYPE_ALIAS_PROPERTY) : eventTypeNode;
         return eventTypeNode == null || eventTypeNode.isNull() ? null : eventTypeNode.asText();
     }
 }

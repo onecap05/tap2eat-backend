@@ -64,6 +64,8 @@ public sealed class RabbitMqOrderEventPublisherImpl : IOrderEventPublisher
             BranchId = order.BranchId,
             PreviousStatus = previousStatus,
             NewStatus = newStatus,
+            EstimatedPreparationMinutes = order.EstimatedPreparationMinutes,
+            EstimatedReadyAt = order.EstimatedReadyAt,
             Items = string.Equals(newStatus, "Delivered", StringComparison.OrdinalIgnoreCase)
                 ? order.Items
                     .Where(item => !string.IsNullOrWhiteSpace(item.ProductId))

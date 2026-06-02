@@ -37,7 +37,7 @@ public sealed class InternalOrdersController : ControllerBase
             return Unauthorized();
         }
 
-        var orders = await _orderService.GetByRestaurantIdAsync(
+        var orders = await _orderService.GetOrderByRestaurantIdAsync(
             restaurantId,
             query,
             cancellationToken);

@@ -9,7 +9,10 @@ public record RealtimeOrderEventMessage(
         String restaurantId,
         String branchId,
         String status,
+        String newStatus,
         String previousStatus,
+        Integer estimatedPreparationMinutes,
+        String estimatedReadyAt,
         BigDecimal total,
         String occurredAt
 ) {

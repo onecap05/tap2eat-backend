@@ -23,7 +23,7 @@ public sealed class OrdersController : ControllerBase
         [FromBody] CreateOrderRequest request,
         CancellationToken cancellationToken)
     {
-        var createdOrder = await _orderService.CreateAsync(request, cancellationToken);
+        var createdOrder = await _orderService.CreateOrderAsync(request, cancellationToken);
 
         return CreatedAtAction(
             nameof(GetById),
@@ -36,7 +36,7 @@ public sealed class OrdersController : ControllerBase
         string id,
         CancellationToken cancellationToken)
     {
-        var order = await _orderService.GetByIdAsync(id, cancellationToken);
+        var order = await _orderService.GetOrderByIdAsync(id, cancellationToken);
 
         return Ok(order);
     }
@@ -47,7 +47,7 @@ public sealed class OrdersController : ControllerBase
         string publicTrackingCode,
         CancellationToken cancellationToken)
     {
-        var order = await _orderService.GetPublicTrackingAsync(
+        var order = await _orderService.GetOrderPublicTrackingAsync(
             publicTrackingCode,
             cancellationToken);
 
@@ -60,7 +60,7 @@ public sealed class OrdersController : ControllerBase
         [FromQuery] OrderQueryRequest query,
         CancellationToken cancellationToken)
     {
-        var orders = await _orderService.GetByCustomerAccountIdAsync(
+        var orders = await _orderService.GetOrderByCustomerAccountIdAsync(
             customerAccountId,
             query,
             cancellationToken);
@@ -74,7 +74,7 @@ public sealed class OrdersController : ControllerBase
         [FromQuery] OrderQueryRequest query,
         CancellationToken cancellationToken)
     {
-        var orders = await _orderService.GetByRestaurantIdAsync(
+        var orders = await _orderService.GetOrderByRestaurantIdAsync(
             restaurantId,
             query,
             cancellationToken);
@@ -88,7 +88,7 @@ public sealed class OrdersController : ControllerBase
         [FromQuery] OrderQueryRequest query,
         CancellationToken cancellationToken)
     {
-        var orders = await _orderService.GetByBranchIdAsync(
+        var orders = await _orderService.GetOrderByBranchIdAsync(
             branchId,
             query,
             cancellationToken);

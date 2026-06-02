@@ -4,12 +4,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
 
 import java.util.Collection;
 
@@ -52,32 +53,33 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http,
+    public SecurityWebFilterChain securityWebFilterChain(
+            ServerHttpSecurity http,
             Converter<Jwt, Collection<GrantedAuthority>> jwtGrantedAuthoritiesConverter
-    ) throws Exception {
+    ) {
         JwtAuthenticationConverter authenticationConverter = new JwtAuthenticationConverter();
         authenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
+        ReactiveJwtAuthenticationConverterAdapter reactiveAuthenticationConverter =
+                new ReactiveJwtAuthenticationConverterAdapter(authenticationConverter);
 
-        http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(PUBLIC_AUTH_ENDPOINTS).permitAll()
-                        .requestMatchers(PUBLIC_SYSTEM_ENDPOINTS).permitAll()
+        return http
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
+                .authorizeExchange(auth -> auth
+                        .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .pathMatchers(PUBLIC_AUTH_ENDPOINTS).permitAll()
+                        .pathMatchers(PUBLIC_SYSTEM_ENDPOINTS).permitAll()
                         // SockJS cannot reliably send Authorization headers during every handshake transport.
                         // Keep only the WebSocket endpoint public temporarily; REST APIs remain protected.
-                        .requestMatchers("/ws", "/ws/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, PUBLIC_CUSTOMER_ENDPOINTS).permitAll()
-                        .requestMatchers(HttpMethod.GET, PUBLIC_ORDER_ENDPOINTS).permitAll()
-                        .requestMatchers(OWNER_CATALOG_ENDPOINTS).hasRole(RESTAURANT_OWNER_ROLE)
-                        .anyRequest().authenticated()
+                        .pathMatchers("/ws", "/ws/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, PUBLIC_CUSTOMER_ENDPOINTS).permitAll()
+                        .pathMatchers(HttpMethod.GET, PUBLIC_ORDER_ENDPOINTS).permitAll()
+                        .pathMatchers(OWNER_CATALOG_ENDPOINTS).hasRole(RESTAURANT_OWNER_ROLE)
+                        .anyExchange().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(authenticationConverter))
-                );
-
-        return http.build();
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(reactiveAuthenticationConverter))
+                )
+                .build();
     }
 }

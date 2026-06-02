@@ -49,7 +49,10 @@ class RealtimeEventPublisherImplTest {
         );
         assertThat(messageCaptor.getValue().eventType()).isEqualTo("order.created");
         assertThat(messageCaptor.getValue().status()).isEqualTo("Created");
+        assertThat(messageCaptor.getValue().newStatus()).isEqualTo("Created");
         assertThat(messageCaptor.getValue().previousStatus()).isNull();
+        assertThat(messageCaptor.getValue().estimatedPreparationMinutes()).isNull();
+        assertThat(messageCaptor.getValue().estimatedReadyAt()).isNull();
         assertThat(messageCaptor.getValue().total()).isEqualByComparingTo("140.75");
     }
 
@@ -70,7 +73,10 @@ class RealtimeEventPublisherImplTest {
         );
         assertThat(messageCaptor.getValue().eventType()).isEqualTo("order.status.changed");
         assertThat(messageCaptor.getValue().status()).isEqualTo("Preparing");
+        assertThat(messageCaptor.getValue().newStatus()).isEqualTo("Preparing");
         assertThat(messageCaptor.getValue().previousStatus()).isEqualTo("Accepted");
+        assertThat(messageCaptor.getValue().estimatedPreparationMinutes()).isEqualTo(20);
+        assertThat(messageCaptor.getValue().estimatedReadyAt()).isEqualTo("2026-05-22T10:40:31Z");
         assertThat(messageCaptor.getValue().total()).isNull();
     }
 
@@ -193,6 +199,8 @@ class RealtimeEventPublisherImplTest {
                 "branch-2",
                 "Accepted",
                 "Preparing",
+                20,
+                "2026-05-22T10:40:31Z",
                 "2026-05-22T10:20:31Z"
         );
     }

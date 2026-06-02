@@ -36,7 +36,24 @@ public sealed class RabbitMqOrderEventPublisherImplTests
         message.Items.Should().BeEmpty();
     }
 
-    private static OrderResponse CreateOrder(OrderStatus status)
+    [Fact]
+    public void CreateOrderStatusChangedEvent_WhenEstimateExists_ShouldIncludeEstimate()
+    {
+        var estimatedReadyAt = new DateTime(2026, 5, 22, 16, 30, 0, DateTimeKind.Utc);
+        var order = CreateOrder(OrderStatus.Accepted, 20, estimatedReadyAt);
+
+        var message = RabbitMqOrderEventPublisherImpl.CreateOrderStatusChangedEvent(
+            order,
+            previousStatus: "Created");
+
+        message.EstimatedPreparationMinutes.Should().Be(20);
+        message.EstimatedReadyAt.Should().Be(estimatedReadyAt);
+    }
+
+    private static OrderResponse CreateOrder(
+        OrderStatus status,
+        int? estimatedPreparationMinutes = null,
+        DateTime? estimatedReadyAt = null)
     {
         return new OrderResponse
         {
@@ -45,6 +62,8 @@ public sealed class RabbitMqOrderEventPublisherImplTests
             RestaurantId = "restaurant-1",
             BranchId = "branch-1",
             Status = status,
+            EstimatedPreparationMinutes = estimatedPreparationMinutes,
+            EstimatedReadyAt = estimatedReadyAt,
             Items =
             [
                 new OrderItemResponse

@@ -30,6 +30,10 @@ public sealed class OrderDocument
     [BsonRepresentation(BsonType.String)]
     public OrderStatus Status { get; set; } = OrderStatus.Created;
 
+    public int? EstimatedPreparationMinutes { get; set; }
+
+    public DateTime? EstimatedReadyAt { get; set; }
+
     public string? Notes { get; set; }
 
     public DateTime CreatedAt { get; set; }

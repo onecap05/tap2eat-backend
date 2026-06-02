@@ -95,6 +95,20 @@ public sealed class OrderMapperTests
     }
 
     [Fact]
+    public void ToResponse_ShouldMapEstimatedPreparationTime()
+    {
+        var estimatedReadyAt = new DateTime(2026, 5, 22, 16, 30, 0, DateTimeKind.Utc);
+        var document = OrderTestData.OrderDocument(
+            estimatedPreparationMinutes: 20,
+            estimatedReadyAt: estimatedReadyAt);
+
+        var response = OrderMapper.ToResponse(document);
+
+        response.EstimatedPreparationMinutes.Should().Be(20);
+        response.EstimatedReadyAt.Should().Be(estimatedReadyAt);
+    }
+
+    [Fact]
     public void ToPublicTrackingResponse_ShouldNotExposeCustomerAccountIdOrInternalItemIds()
     {
         var document = OrderTestData.OrderDocument(publicTrackingCode: "track-code-1");
@@ -106,5 +120,19 @@ public sealed class OrderMapperTests
         response.Items.Should().ContainSingle();
         response.Items[0].ProductNameSnapshot.Should().Be("Taco");
         response.Items[0].UnitPriceSnapshot.Should().Be(50);
+    }
+
+    [Fact]
+    public void ToPublicTrackingResponse_ShouldMapEstimatedPreparationTime()
+    {
+        var estimatedReadyAt = new DateTime(2026, 5, 22, 16, 30, 0, DateTimeKind.Utc);
+        var document = OrderTestData.OrderDocument(
+            estimatedPreparationMinutes: 20,
+            estimatedReadyAt: estimatedReadyAt);
+
+        var response = OrderMapper.ToPublicTrackingResponse(document);
+
+        response.EstimatedPreparationMinutes.Should().Be(20);
+        response.EstimatedReadyAt.Should().Be(estimatedReadyAt);
     }
 }

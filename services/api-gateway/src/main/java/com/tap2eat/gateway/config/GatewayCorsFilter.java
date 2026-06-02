@@ -1,17 +1,18 @@
 package com.tap2eat.gateway.config;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.util.Set;
 
 @Component
-public class GatewayCorsFilter extends OncePerRequestFilter {
+public class GatewayCorsFilter implements WebFilter {
 
     private static final Set<String> ALLOWED_ORIGINS = Set.of(
             "http://localhost:4200",
@@ -21,29 +22,37 @@ public class GatewayCorsFilter extends OncePerRequestFilter {
     private static final String ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
     private static final String ALLOWED_HEADERS =
             "Authorization, Content-Type, Accept, Origin, X-Simulated-Payment-Token";
+    private static final String WEBSOCKET_PATH = "/ws";
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
-    ) throws ServletException, IOException {
-        String origin = request.getHeader("Origin");
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        if (isWebSocketSockJsRequest(exchange)) {
+            return chain.filter(exchange);
+        }
+
+        String origin = exchange.getRequest().getHeaders().getOrigin();
 
         if (origin != null && ALLOWED_ORIGINS.contains(origin)) {
-            response.setHeader("Access-Control-Allow-Origin", origin);
-            response.setHeader("Vary", "Origin");
-            response.setHeader("Access-Control-Allow-Credentials", "true");
-            response.setHeader("Access-Control-Allow-Methods", ALLOWED_METHODS);
-            response.setHeader("Access-Control-Allow-Headers", ALLOWED_HEADERS);
-            response.setHeader("Access-Control-Max-Age", "3600");
+            HttpHeaders headers = exchange.getResponse().getHeaders();
+            headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+            headers.set(HttpHeaders.VARY, HttpHeaders.ORIGIN);
+            headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+            headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, ALLOWED_METHODS);
+            headers.set(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, ALLOWED_HEADERS);
+            headers.set(HttpHeaders.ACCESS_CONTROL_MAX_AGE, "3600");
         }
 
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            response.setStatus(HttpServletResponse.SC_OK);
-            return;
+        if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
+            exchange.getResponse().setStatusCode(HttpStatus.OK);
+            return exchange.getResponse().setComplete();
         }
 
-        filterChain.doFilter(request, response);
+        return chain.filter(exchange);
+    }
+
+    private boolean isWebSocketSockJsRequest(ServerWebExchange exchange) {
+        String path = exchange.getRequest().getURI().getPath();
+
+        return WEBSOCKET_PATH.equals(path) || path.startsWith(WEBSOCKET_PATH + "/");
     }
 }

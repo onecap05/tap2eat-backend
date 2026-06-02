@@ -61,6 +61,7 @@ builder.Services.AddHttpClient<ICatalogClient, CatalogClient>((serviceProvider, 
 
 builder.Services.AddScoped<ILocationDistanceService, HaversineDistanceService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationServiceImpl>();
+builder.Services.AddScoped<IFavoriteService, FavoriteServiceImpl>();
 builder.Services.AddScoped<IRecommendationGraphRepository, RecommendationGraphRepository>();
 builder.Services.AddScoped<IOrderDeliveredEventProcessor, OrderDeliveredEventProcessor>();
 

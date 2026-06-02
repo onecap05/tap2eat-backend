@@ -23,6 +23,34 @@ public sealed class RecommendationGraphRepositoryTests
     }
 
     [Fact]
+    public void AddFavoriteRestaurantQuery_ShouldUseMergeToAvoidDuplicates()
+    {
+        RecommendationGraphRepository.AddFavoriteRestaurantQuery.Should().Contain("MERGE (customer:Customer");
+        RecommendationGraphRepository.AddFavoriteRestaurantQuery.Should().Contain("MERGE (restaurant:Restaurant");
+        RecommendationGraphRepository.AddFavoriteRestaurantQuery.Should().Contain("MERGE (customer)-[favorite:FAVORITE_RESTAURANT]->(restaurant)");
+        RecommendationGraphRepository.AddFavoriteRestaurantQuery.Should().Contain("ON CREATE SET favorite.createdAt = $createdAt");
+    }
+
+    [Fact]
+    public void AddFavoriteProductQuery_ShouldStoreBaseProductWithoutModifiers()
+    {
+        RecommendationGraphRepository.AddFavoriteProductQuery.Should().Contain("MERGE (product:Product {id: $productId})");
+        RecommendationGraphRepository.AddFavoriteProductQuery.Should().Contain("MERGE (product)-[:SOLD_BY]->(restaurant)");
+        RecommendationGraphRepository.AddFavoriteProductQuery.Should().Contain("MERGE (customer)-[favorite:FAVORITE_PRODUCT]->(product)");
+        RecommendationGraphRepository.AddFavoriteProductQuery.Should().NotContain("modifier");
+        RecommendationGraphRepository.AddFavoriteProductQuery.Should().NotContain("extra");
+    }
+
+    [Fact]
+    public void FeaturedProductCandidatesQuery_ShouldCountEachCustomerOnce()
+    {
+        RecommendationGraphRepository.FeaturedProductCandidatesQuery.Should().Contain("FAVORITE_PRODUCT");
+        RecommendationGraphRepository.FeaturedProductCandidatesQuery.Should().Contain("SOLD_BY");
+        RecommendationGraphRepository.FeaturedProductCandidatesQuery.Should().Contain("count(DISTINCT customer)");
+        RecommendationGraphRepository.FeaturedProductCandidatesQuery.Should().Contain("ORDER BY favoriteCount DESC");
+    }
+
+    [Fact]
     public void UpsertDeliveredOrderQuery_ShouldUseExpectedParameterNames()
     {
         RecommendationGraphRepository.UpsertDeliveredOrderQuery.Should().Contain("$customerAccountId");

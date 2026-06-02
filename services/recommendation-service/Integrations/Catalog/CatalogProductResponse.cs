@@ -10,6 +10,10 @@ public sealed class CatalogProductResponse
 
     public string Name { get; set; } = string.Empty;
 
+    public decimal Price { get; set; }
+
+    public CatalogImageResponse? Image { get; set; }
+
     public bool? Active { get; set; }
 
     public bool? Available { get; set; }

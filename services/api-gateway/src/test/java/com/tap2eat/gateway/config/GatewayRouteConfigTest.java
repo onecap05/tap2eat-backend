@@ -20,6 +20,10 @@ class GatewayRouteConfigTest {
                 .isEqualTo("http://catalog-service:8082");
         assertThat(properties.getProperty("spring.cloud.gateway.server.webflux.routes[7].uri"))
                 .isEqualTo("http://order-service:8085");
+        assertThat(properties.getProperty("spring.cloud.gateway.server.webflux.routes[16].uri"))
+                .isEqualTo("http://recommendation-service:8086");
+        assertThat(properties.getProperty("spring.cloud.gateway.server.webflux.routes[16].predicates[0]"))
+                .isEqualTo("Path=/api/favorites/**");
         assertThat(properties.getProperty("spring.cloud.gateway.server.webflux.routes[13].uri"))
                 .isEqualTo("http://finance-service:8083");
     }

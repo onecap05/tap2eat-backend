@@ -36,6 +36,53 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
             likesTag.lastSeenAt = $deliveredAt
         """;
 
+    public const string AddFavoriteRestaurantQuery = """
+        MERGE (customer:Customer {id: $customerAccountId})
+        MERGE (restaurant:Restaurant {id: $restaurantId})
+        MERGE (customer)-[favorite:FAVORITE_RESTAURANT]->(restaurant)
+        ON CREATE SET favorite.createdAt = $createdAt
+        RETURN restaurant.id AS restaurantId, favorite.createdAt AS createdAt
+        """;
+
+    public const string RemoveFavoriteRestaurantQuery = """
+        MATCH (:Customer {id: $customerAccountId})-[favorite:FAVORITE_RESTAURANT]->(:Restaurant {id: $restaurantId})
+        DELETE favorite
+        """;
+
+    public const string AddFavoriteProductQuery = """
+        MERGE (customer:Customer {id: $customerAccountId})
+        MERGE (restaurant:Restaurant {id: $restaurantId})
+        MERGE (product:Product {id: $productId})
+        MERGE (product)-[:SOLD_BY]->(restaurant)
+        MERGE (customer)-[favorite:FAVORITE_PRODUCT]->(product)
+        ON CREATE SET favorite.createdAt = $createdAt
+        RETURN restaurant.id AS restaurantId, product.id AS productId, favorite.createdAt AS createdAt
+        """;
+
+    public const string RemoveFavoriteProductQuery = """
+        MATCH (:Customer {id: $customerAccountId})-[favorite:FAVORITE_PRODUCT]->(:Product {id: $productId})
+        DELETE favorite
+        """;
+
+    public const string FavoriteRestaurantsQuery = """
+        MATCH (:Customer {id: $customerAccountId})-[favorite:FAVORITE_RESTAURANT]->(restaurant:Restaurant)
+        RETURN restaurant.id AS restaurantId, favorite.createdAt AS createdAt
+        ORDER BY favorite.createdAt DESC
+        """;
+
+    public const string FavoriteProductsQuery = """
+        MATCH (:Customer {id: $customerAccountId})-[favorite:FAVORITE_PRODUCT]->(product:Product)-[:SOLD_BY]->(restaurant:Restaurant)
+        RETURN restaurant.id AS restaurantId, product.id AS productId, favorite.createdAt AS createdAt
+        ORDER BY favorite.createdAt DESC
+        """;
+
+    public const string FeaturedProductCandidatesQuery = """
+        MATCH (customer:Customer)-[:FAVORITE_PRODUCT]->(product:Product)-[:SOLD_BY]->(:Restaurant {id: $restaurantId})
+        RETURN product.id AS productId, count(DISTINCT customer) AS favoriteCount
+        ORDER BY favoriteCount DESC, product.id ASC
+        LIMIT 10
+        """;
+
     private const string PreferredTagsQuery = """
         MATCH (:Customer {id: $customerAccountId})-[likes:LIKES_TAG]->(tag:Tag)
         RETURN tag.name AS name
@@ -237,5 +284,180 @@ public sealed class RecommendationGraphRepository : IRecommendationGraphReposito
             _logger.LogWarning(exception, "Could not load also-ordered restaurant recommendations from Neo4j.");
             return [];
         }
+    }
+
+    public async Task<FavoriteRestaurantGraphRecord> AddFavoriteRestaurantAsync(
+        string customerAccountId,
+        string restaurantId,
+        DateTimeOffset createdAt,
+        CancellationToken cancellationToken = default)
+    {
+        await using var session = _driver.AsyncSession();
+        var record = await session.ExecuteWriteAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(
+                AddFavoriteRestaurantQuery,
+                new Dictionary<string, object?>
+                {
+                    ["customerAccountId"] = customerAccountId,
+                    ["restaurantId"] = restaurantId,
+                    ["createdAt"] = ToGraphDate(createdAt)
+                });
+
+            return await cursor.SingleAsync();
+        });
+
+        return ToFavoriteRestaurantRecord(record);
+    }
+
+    public async Task RemoveFavoriteRestaurantAsync(
+        string customerAccountId,
+        string restaurantId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var session = _driver.AsyncSession();
+        await session.ExecuteWriteAsync(async tx =>
+        {
+            await tx.RunAsync(
+                RemoveFavoriteRestaurantQuery,
+                new Dictionary<string, object?>
+                {
+                    ["customerAccountId"] = customerAccountId,
+                    ["restaurantId"] = restaurantId
+                });
+        });
+    }
+
+    public async Task<FavoriteProductGraphRecord> AddFavoriteProductAsync(
+        string customerAccountId,
+        string restaurantId,
+        string productId,
+        DateTimeOffset createdAt,
+        CancellationToken cancellationToken = default)
+    {
+        await using var session = _driver.AsyncSession();
+        var record = await session.ExecuteWriteAsync(async tx =>
+        {
+            var cursor = await tx.RunAsync(
+                AddFavoriteProductQuery,
+                new Dictionary<string, object?>
+                {
+                    ["customerAccountId"] = customerAccountId,
+                    ["restaurantId"] = restaurantId,
+                    ["productId"] = productId,
+                    ["createdAt"] = ToGraphDate(createdAt)
+                });
+
+            return await cursor.SingleAsync();
+        });
+
+        return ToFavoriteProductRecord(record);
+    }
+
+    public async Task RemoveFavoriteProductAsync(
+        string customerAccountId,
+        string productId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var session = _driver.AsyncSession();
+        await session.ExecuteWriteAsync(async tx =>
+        {
+            await tx.RunAsync(
+                RemoveFavoriteProductQuery,
+                new Dictionary<string, object?>
+                {
+                    ["customerAccountId"] = customerAccountId,
+                    ["productId"] = productId
+                });
+        });
+    }
+
+    public async Task<IReadOnlyList<FavoriteRestaurantGraphRecord>> GetFavoriteRestaurantsAsync(
+        string customerAccountId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(customerAccountId))
+        {
+            return [];
+        }
+
+        await using var session = _driver.AsyncSession();
+        var cursor = await session.RunAsync(
+            FavoriteRestaurantsQuery,
+            new Dictionary<string, object?>
+            {
+                ["customerAccountId"] = customerAccountId
+            });
+
+        return await cursor.ToListAsync(ToFavoriteRestaurantRecord);
+    }
+
+    public async Task<IReadOnlyList<FavoriteProductGraphRecord>> GetFavoriteProductsAsync(
+        string customerAccountId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(customerAccountId))
+        {
+            return [];
+        }
+
+        await using var session = _driver.AsyncSession();
+        var cursor = await session.RunAsync(
+            FavoriteProductsQuery,
+            new Dictionary<string, object?>
+            {
+                ["customerAccountId"] = customerAccountId
+            });
+
+        return await cursor.ToListAsync(ToFavoriteProductRecord);
+    }
+
+    public async Task<IReadOnlyList<FeaturedProductGraphRecord>> GetFeaturedProductCandidatesAsync(
+        string restaurantId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(restaurantId))
+        {
+            return [];
+        }
+
+        await using var session = _driver.AsyncSession();
+        var cursor = await session.RunAsync(
+            FeaturedProductCandidatesQuery,
+            new Dictionary<string, object?>
+            {
+                ["restaurantId"] = restaurantId
+            });
+
+        return await cursor.ToListAsync(record => new FeaturedProductGraphRecord(
+            record["productId"].As<string>(),
+            Convert.ToInt32(record["favoriteCount"].As<long>())));
+    }
+
+    private static FavoriteRestaurantGraphRecord ToFavoriteRestaurantRecord(IRecord record)
+    {
+        return new FavoriteRestaurantGraphRecord(
+            record["restaurantId"].As<string>(),
+            FromGraphDate(record["createdAt"]));
+    }
+
+    private static FavoriteProductGraphRecord ToFavoriteProductRecord(IRecord record)
+    {
+        return new FavoriteProductGraphRecord(
+            record["restaurantId"].As<string>(),
+            record["productId"].As<string>(),
+            FromGraphDate(record["createdAt"]));
+    }
+
+    private static string ToGraphDate(DateTimeOffset value)
+    {
+        return value.UtcDateTime.ToString("O");
+    }
+
+    private static DateTimeOffset FromGraphDate(object value)
+    {
+        return DateTimeOffset.TryParse(value.As<string>(), out var parsed)
+            ? parsed
+            : DateTimeOffset.MinValue;
     }
 }

@@ -1,6 +1,7 @@
 package com.tap2eat.catalog.services.impl;
 
 import com.tap2eat.catalog.dtos.response.customer.CustomerCategoryResponse;
+import com.tap2eat.catalog.dtos.response.customer.CustomerBranchResponse;
 import com.tap2eat.catalog.dtos.response.customer.CustomerProductResponse;
 import com.tap2eat.catalog.dtos.response.customer.CustomerRestaurantResponse;
 import com.tap2eat.catalog.exceptions.CatalogValidationException;
@@ -204,18 +205,39 @@ class CustomerCatalogServiceImplTest {
     }
 
     @Test
+    void getActiveBranchesByRestaurant_shouldReturnVisibleBranchesWithOpenState() {
+        when(restaurantRepository.findByIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-1"))
+                .thenReturn(Optional.of(restaurant("restaurant-1")));
+        when(branchRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-1"))
+                .thenReturn(List.of(
+                        branch("branch-open", "restaurant-1", CatalogTestDataFactory.openAvailability()),
+                        branch("branch-closed", "restaurant-1", CatalogTestDataFactory.closedAvailability())
+                ));
+
+        List<CustomerBranchResponse> branches = customerCatalogService.getActiveBranchesByRestaurant("restaurant-1");
+
+        assertThat(branches).extracting(CustomerBranchResponse::id)
+                .containsExactly("branch-open", "branch-closed");
+        assertThat(branches).extracting(CustomerBranchResponse::open)
+                .containsExactly(true, false);
+    }
+
+    @Test
     void getAvailableCategoriesByRestaurant_shouldIncludeOnlyAvailableCategoriesWhenRestaurantIsOpen() {
         whenRestaurantIsOpen("restaurant-1");
         CategoryDocument active = category("category-active", "restaurant-1", CatalogTestDataFactory.openAvailability());
+        CategoryDocument nullOrder = category("category-null-order", "restaurant-1", CatalogTestDataFactory.openAvailability());
+        nullOrder.setDisplayOrder(null);
         CategoryDocument deleted = category("category-deleted", "restaurant-1", CatalogTestDataFactory.openAvailability());
         deleted.setDeletedAt(LocalDateTime.now());
         CategoryDocument outsideSchedule = category("category-closed", "restaurant-1", CatalogTestDataFactory.closedAvailability());
         when(categoryRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-1"))
-                .thenReturn(List.of(active, deleted, outsideSchedule));
+                .thenReturn(List.of(nullOrder, active, deleted, outsideSchedule));
 
         List<CustomerCategoryResponse> categories = customerCatalogService.getAvailableCategoriesByRestaurant("restaurant-1");
 
-        assertThat(categories).extracting(CustomerCategoryResponse::id).containsExactly("category-active");
+        assertThat(categories).extracting(CustomerCategoryResponse::id)
+                .containsExactly("category-active", "category-null-order");
         assertThat(categories.getFirst().available()).isTrue();
     }
 
@@ -235,18 +257,20 @@ class CustomerCatalogServiceImplTest {
                 .thenReturn(List.of(category("category-1", "restaurant-1", CatalogTestDataFactory.openAvailability())));
         ProductDocument simple = CatalogTestDataFactory.simpleProduct("product-simple", "restaurant-1", "category-1");
         ProductDocument customizable = customizableProduct("product-customizable", "restaurant-1", "category-1");
+        ProductDocument nullOrder = CatalogTestDataFactory.simpleProduct("product-null-order", "restaurant-1", "category-1");
+        nullOrder.setDisplayOrder(null);
         ProductDocument deleted = CatalogTestDataFactory.simpleProduct("product-deleted", "restaurant-1", "category-1");
         deleted.setDeletedAt(LocalDateTime.now());
         ProductDocument paused = CatalogTestDataFactory.simpleProduct("product-paused", "restaurant-1", "category-1");
         paused.getAvailability().setStatus(AvailabilityStatus.TEMPORARILY_UNAVAILABLE);
         ProductDocument differentCategory = CatalogTestDataFactory.simpleProduct("product-other", "restaurant-1", "category-2");
         when(productRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-1"))
-                .thenReturn(List.of(simple, customizable, deleted, paused, differentCategory));
+                .thenReturn(List.of(nullOrder, simple, customizable, deleted, paused, differentCategory));
 
         List<CustomerProductResponse> products = customerCatalogService.getAvailableProductsByRestaurant("restaurant-1");
 
         assertThat(products).extracting(CustomerProductResponse::id)
-                .containsExactly("product-simple", "product-customizable");
+                .containsExactly("product-simple", "product-customizable", "product-null-order");
         assertThat(products.get(0).productType()).isEqualTo(ProductType.SIMPLE);
         assertThat(products.get(1).productType()).isEqualTo(ProductType.CUSTOMIZABLE);
         assertThat(products.get(1).modifierGroups()).hasSize(1);
@@ -276,6 +300,31 @@ class CustomerCatalogServiceImplTest {
         assertThat(response.id()).isEqualTo("product-1");
         assertThat(response.available()).isTrue();
         assertThat(response.modifierGroups()).hasSize(1);
+    }
+
+    @Test
+    void getAvailableProductById_shouldHandleNullModifierGroupsAndOptions() {
+        ProductDocument productWithoutGroups = CatalogTestDataFactory.simpleProduct("product-null-groups", "restaurant-1", "category-1");
+        productWithoutGroups.setModifierGroups(null);
+        when(productRepository.findByIdAndIsActiveTrueAndDeletedAtIsNull("product-null-groups"))
+                .thenReturn(Optional.of(productWithoutGroups));
+        whenRestaurantIsOpen("restaurant-1");
+        when(categoryRepository.findAllByRestaurantIdAndIsActiveTrueAndDeletedAtIsNull("restaurant-1"))
+                .thenReturn(List.of(category("category-1", "restaurant-1", CatalogTestDataFactory.openAvailability())));
+
+        CustomerProductResponse simpleResponse = customerCatalogService.getAvailableProductById("product-null-groups");
+
+        assertThat(simpleResponse.modifierGroups()).isEmpty();
+
+        ProductDocument productWithNullOptions = customizableProduct("product-null-options", "restaurant-1", "category-1");
+        productWithNullOptions.getModifierGroups().getFirst().setOptions(null);
+        when(productRepository.findByIdAndIsActiveTrueAndDeletedAtIsNull("product-null-options"))
+                .thenReturn(Optional.of(productWithNullOptions));
+
+        CustomerProductResponse customizableResponse = customerCatalogService.getAvailableProductById("product-null-options");
+
+        assertThat(customizableResponse.modifierGroups()).hasSize(1);
+        assertThat(customizableResponse.modifierGroups().getFirst().options()).isEmpty();
     }
 
     @Test

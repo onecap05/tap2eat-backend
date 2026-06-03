@@ -1,16 +1,22 @@
 package com.tap2eat.catalog.mappers;
 
 import com.tap2eat.catalog.fixtures.CatalogTestDataFactory;
+import com.tap2eat.catalog.dtos.request.product.AvailabilityConfigRequest;
 import com.tap2eat.catalog.dtos.request.product.CreateProductRequest;
+import com.tap2eat.catalog.dtos.request.product.DailyAvailabilityRequest;
 import com.tap2eat.catalog.dtos.request.product.ModifierGroupRequest;
 import com.tap2eat.catalog.dtos.request.product.ModifierOptionRequest;
+import com.tap2eat.catalog.dtos.request.product.TimeRangeRequest;
 import com.tap2eat.catalog.dtos.request.product.UpdateProductRequest;
 import com.tap2eat.catalog.models.documents.ProductDocument;
+import com.tap2eat.catalog.models.enums.AvailabilityStatus;
 import com.tap2eat.catalog.models.enums.ProductType;
 import com.tap2eat.catalog.models.enums.SelectionType;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -141,5 +147,60 @@ class ProductMapperTest {
         assertThat(document.getTags()).containsExactly("keep");
         assertThat(document.getDietaryFlags()).containsExactly("diet");
         assertThat(document.getAllergens()).containsExactly("allergen");
+    }
+
+    @Test
+    void toDocument_shouldApplyNestedDefaultsForAvailabilityAndModifierOptions() {
+        AvailabilityConfigRequest availability = new AvailabilityConfigRequest(
+                null,
+                null,
+                null,
+                Arrays.asList(
+                        null,
+                        new DailyAvailabilityRequest(
+                                DayOfWeek.MONDAY,
+                                null,
+                                Arrays.asList(null, new TimeRangeRequest(LocalTime.of(9, 0), LocalTime.of(10, 0)))
+                        ),
+                        new DailyAvailabilityRequest(DayOfWeek.TUESDAY, Boolean.TRUE, null)
+                )
+        );
+
+        ProductDocument product = mapper.toDocument(new CreateProductRequest(
+                "restaurant-1",
+                "category-1",
+                "Nested defaults",
+                null,
+                ProductType.CUSTOMIZABLE,
+                BigDecimal.TEN,
+                null,
+                List.of(new ModifierGroupRequest(
+                        " ",
+                        "Extras",
+                        SelectionType.MULTIPLE,
+                        0,
+                        2,
+                        false,
+                        true,
+                        1,
+                        null
+                )),
+                availability,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        ));
+
+        assertThat(product.getAvailability().getStatus()).isEqualTo(AvailabilityStatus.AVAILABLE);
+        assertThat(product.getAvailability().getWeeklySchedule()).hasSize(3);
+        assertThat(product.getAvailability().getWeeklySchedule().get(0)).isNull();
+        assertThat(product.getAvailability().getWeeklySchedule().get(1).getEnabled()).isFalse();
+        assertThat(product.getAvailability().getWeeklySchedule().get(1).getTimeRanges().get(0)).isNull();
+        assertThat(product.getAvailability().getWeeklySchedule().get(2).getTimeRanges()).isEmpty();
+        assertThat(product.getModifierGroups().getFirst().getId()).isNotBlank();
+        assertThat(product.getModifierGroups().getFirst().getOptions()).isEmpty();
     }
 }

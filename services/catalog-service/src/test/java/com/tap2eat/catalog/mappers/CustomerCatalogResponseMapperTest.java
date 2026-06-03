@@ -66,14 +66,21 @@ class CustomerCatalogResponseMapperTest {
     void mapper_shouldMapNullNestedItemsInCustomerCollections() {
         ProductDocument product = CatalogTestDataFactory.customizableProduct();
         product.getAvailability().setWeeklySchedule(Arrays.asList(null, product.getAvailability().getWeeklySchedule().getFirst()));
-        product.getAvailability().getWeeklySchedule().get(1).setTimeRanges(Arrays.asList(null, CatalogTestDataFactory.timeRange("10:00", "11:00")));
+        product.getAvailability().getWeeklySchedule().get(1).setTimeRanges(null);
         product.setModifierGroups(Arrays.asList(null, CatalogTestDataFactory.modifierGroup()));
-        product.getModifierGroups().get(1).setOptions(Arrays.asList(null, CatalogTestDataFactory.modifierOption("option", "Option", true)));
+        product.getModifierGroups().get(1).setOptions(null);
+        ProductDocument productWithoutImageOrAvailability = CatalogTestDataFactory.simpleProduct();
+        productWithoutImageOrAvailability.setImage(null);
+        productWithoutImageOrAvailability.setAvailability(null);
 
         CustomerProductResponse response = mapper.toProductResponse(product, true);
+        CustomerProductResponse nullNestedResponse = mapper.toProductResponse(productWithoutImageOrAvailability, true);
 
         assertThat(response.availability().weeklySchedule().get(0)).isNull();
+        assertThat(response.availability().weeklySchedule().get(1).timeRanges()).isEmpty();
         assertThat(response.modifierGroups().get(0)).isNull();
-        assertThat(response.modifierGroups().get(1).options().get(0)).isNull();
+        assertThat(response.modifierGroups().get(1).options()).isEmpty();
+        assertThat(nullNestedResponse.image()).isNull();
+        assertThat(nullNestedResponse.availability()).isNull();
     }
 }

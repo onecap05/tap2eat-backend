@@ -81,6 +81,35 @@ class ModifierGroupValidatorTest {
         assertThatCode(() -> ModifierGroupValidator.validate(group)).doesNotThrowAnyException();
     }
 
+    @Test
+    void validate_shouldCoverNullableSelectionAndInactiveOptionBranches() {
+        ModifierGroup missingMin = groupWithSelection(SelectionType.MULTIPLE, null, 1, false);
+        ModifierGroup missingMax = groupWithSelection(SelectionType.MULTIPLE, 0, null, false);
+        ModifierGroup inactiveWithNullOptions = CatalogTestDataFactory.modifierGroup();
+        inactiveWithNullOptions.setIsActive(Boolean.FALSE);
+        inactiveWithNullOptions.setOptions(null);
+        ModifierGroup inactiveWithInactiveOptions = groupWithSelection(SelectionType.MULTIPLE, 0, 2, false);
+        inactiveWithInactiveOptions.setIsActive(Boolean.FALSE);
+        inactiveWithInactiveOptions.setOptions(List.of(
+                CatalogTestDataFactory.modifierOption("option-1", "Verde", false)
+        ));
+        ModifierGroup nullPrice = CatalogTestDataFactory.modifierGroup();
+        ModifierOption optionWithoutPrice = CatalogTestDataFactory.modifierOption("option-1", "Verde", true);
+        optionWithoutPrice.setAdditionalPrice(null);
+        nullPrice.setOptions(List.of(optionWithoutPrice));
+        ModifierGroup nullOptionDisplay = CatalogTestDataFactory.modifierGroup();
+        ModifierOption optionWithoutDisplay = CatalogTestDataFactory.modifierOption("option-1", "Verde", true);
+        optionWithoutDisplay.setDisplayOrder(null);
+        nullOptionDisplay.setOptions(List.of(optionWithoutDisplay));
+
+        assertInvalid(missingMin);
+        assertInvalid(missingMax);
+        assertThatCode(() -> ModifierGroupValidator.validate(inactiveWithNullOptions)).doesNotThrowAnyException();
+        assertThatCode(() -> ModifierGroupValidator.validate(inactiveWithInactiveOptions)).doesNotThrowAnyException();
+        assertInvalid(nullPrice);
+        assertThatCode(() -> ModifierGroupValidator.validate(nullOptionDisplay)).doesNotThrowAnyException();
+    }
+
     private ModifierGroup groupWithName(String name) {
         ModifierGroup group = CatalogTestDataFactory.modifierGroup();
         group.setName(name);

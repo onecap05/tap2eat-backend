@@ -21,6 +21,12 @@ class ProductValidatorTest {
                 .doesNotThrowAnyException();
         assertThatCode(() -> ProductValidator.validate(CatalogTestDataFactory.customizableProduct()))
                 .doesNotThrowAnyException();
+        ProductDocument nullableOptionalFields = CatalogTestDataFactory.simpleProduct();
+        nullableOptionalFields.setDisplayOrder(null);
+        nullableOptionalFields.setModifierGroups(null);
+        nullableOptionalFields.setTags(List.of());
+
+        assertThatCode(() -> ProductValidator.validate(nullableOptionalFields)).doesNotThrowAnyException();
     }
 
     @Test
@@ -58,6 +64,10 @@ class ProductValidatorTest {
         ImageMetadata image = CatalogTestDataFactory.imageMetadata();
         image.setObjectKey(" ");
         invalidImage.setImage(image);
+        ProductDocument blankImageUrl = CatalogTestDataFactory.simpleProduct();
+        ImageMetadata imageWithBlankUrl = CatalogTestDataFactory.imageMetadata();
+        imageWithBlankUrl.setUrl(" ");
+        blankImageUrl.setImage(imageWithBlankUrl);
         ProductDocument invalidProvider = CatalogTestDataFactory.simpleProduct();
         ImageMetadata imageWithoutProvider = CatalogTestDataFactory.imageMetadata();
         imageWithoutProvider.setProvider(null);
@@ -65,6 +75,7 @@ class ProductValidatorTest {
 
         assertInvalid(missingImage);
         assertInvalid(invalidImage);
+        assertInvalid(blankImageUrl);
         assertInvalid(invalidProvider);
     }
 
@@ -74,9 +85,12 @@ class ProductValidatorTest {
         blankTag.setTags(List.of("popular", " "));
         ProductDocument duplicateAllergen = CatalogTestDataFactory.simpleProduct();
         duplicateAllergen.setAllergens(List.of("Soy", " soy "));
+        ProductDocument emptyDietaryFlags = CatalogTestDataFactory.simpleProduct();
+        emptyDietaryFlags.setDietaryFlags(List.of());
 
         assertInvalid(blankTag);
         assertInvalid(duplicateAllergen);
+        assertThatCode(() -> ProductValidator.validate(emptyDietaryFlags)).doesNotThrowAnyException();
     }
 
     @Test
@@ -86,9 +100,23 @@ class ProductValidatorTest {
         ProductDocument customizableWithoutGroups = CatalogTestDataFactory.simpleProduct();
         customizableWithoutGroups.setProductType(ProductType.CUSTOMIZABLE);
         customizableWithoutGroups.setModifierGroups(List.of());
+        ProductDocument customizableWithNullGroups = CatalogTestDataFactory.simpleProduct();
+        customizableWithNullGroups.setProductType(ProductType.CUSTOMIZABLE);
+        customizableWithNullGroups.setModifierGroups(null);
+        ProductDocument customizableWithNullGroup = CatalogTestDataFactory.simpleProduct();
+        customizableWithNullGroup.setProductType(ProductType.CUSTOMIZABLE);
+        customizableWithNullGroup.setModifierGroups(java.util.Collections.singletonList(null));
+        ProductDocument customizableWithInactiveGroup = CatalogTestDataFactory.simpleProduct();
+        customizableWithInactiveGroup.setProductType(ProductType.CUSTOMIZABLE);
+        var inactiveGroup = CatalogTestDataFactory.modifierGroup();
+        inactiveGroup.setIsActive(Boolean.FALSE);
+        customizableWithInactiveGroup.setModifierGroups(List.of(inactiveGroup));
 
         assertInvalid(simpleWithModifiers);
         assertInvalid(customizableWithoutGroups);
+        assertInvalid(customizableWithNullGroups);
+        assertInvalid(customizableWithNullGroup);
+        assertInvalid(customizableWithInactiveGroup);
     }
 
     private void assertInvalid(ProductDocument product) {

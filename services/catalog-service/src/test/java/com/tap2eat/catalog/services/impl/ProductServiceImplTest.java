@@ -133,6 +133,40 @@ class ProductServiceImplTest {
     @Test
     void createProduct_shouldFailForInvalidCategoryRestaurantOrPrice() {
         assertThatThrownBy(() -> productService.createProduct(null)).isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> productService.createProduct(new CreateProductRequest(
+                " ",
+                CatalogTestDataFactory.CATEGORY_ID,
+                "Invalid restaurant",
+                null,
+                ProductType.SIMPLE,
+                BigDecimal.TEN,
+                CatalogTestDataFactory.imageRequest(),
+                List.of(),
+                CatalogTestDataFactory.availabilityRequest(),
+                Boolean.TRUE,
+                1,
+                Boolean.FALSE,
+                List.of(),
+                List.of(),
+                List.of()
+        ))).isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> productService.createProduct(new CreateProductRequest(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                " ",
+                "Invalid category",
+                null,
+                ProductType.SIMPLE,
+                BigDecimal.TEN,
+                CatalogTestDataFactory.imageRequest(),
+                List.of(),
+                CatalogTestDataFactory.availabilityRequest(),
+                Boolean.TRUE,
+                1,
+                Boolean.FALSE,
+                List.of(),
+                List.of(),
+                List.of()
+        ))).isInstanceOf(CatalogValidationException.class);
 
         when(restaurantRepository.existsById(CatalogTestDataFactory.RESTAURANT_ID)).thenReturn(false);
         assertThatThrownBy(() -> productService.createProduct(CatalogTestDataFactory.createSimpleProductRequest()))
@@ -224,6 +258,10 @@ class ProductServiceImplTest {
     @Test
     void updateProduct_shouldRejectDeletedOrWrongOwnerProduct() {
         assertThatThrownBy(() -> productService.updateProduct(" ", CatalogTestDataFactory.PRODUCT_ID, CatalogTestDataFactory.updateProductRequest()))
+                .isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> productService.updateProduct(CatalogTestDataFactory.RESTAURANT_ID, " ", CatalogTestDataFactory.updateProductRequest()))
+                .isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> productService.updateProduct(CatalogTestDataFactory.RESTAURANT_ID, CatalogTestDataFactory.PRODUCT_ID, null))
                 .isInstanceOf(CatalogValidationException.class);
         ProductDocument otherRestaurant = CatalogTestDataFactory.simpleProduct(CatalogTestDataFactory.PRODUCT_ID, "other-restaurant", CatalogTestDataFactory.CATEGORY_ID);
         when(productRepository.findById(CatalogTestDataFactory.PRODUCT_ID)).thenReturn(Optional.of(otherRestaurant));
@@ -337,6 +375,14 @@ class ProductServiceImplTest {
                 .isInstanceOf(CatalogValidationException.class);
         assertThatThrownBy(() -> productService.resumeProduct(" ", CatalogTestDataFactory.PRODUCT_ID))
                 .isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> productService.deactivateProduct(CatalogTestDataFactory.RESTAURANT_ID, " "))
+                .isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> productService.activateProduct(" ", CatalogTestDataFactory.PRODUCT_ID))
+                .isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> productService.pauseProduct(CatalogTestDataFactory.RESTAURANT_ID, " ", new PauseProductRequest(TemporaryUnavailabilityReason.OUT_OF_STOCK, null)))
+                .isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> productService.resumeProduct(CatalogTestDataFactory.RESTAURANT_ID, " "))
+                .isInstanceOf(CatalogValidationException.class);
         ProductDocument otherRestaurant = CatalogTestDataFactory.simpleProduct(CatalogTestDataFactory.PRODUCT_ID, "other-restaurant", CatalogTestDataFactory.CATEGORY_ID);
         when(productRepository.findById(CatalogTestDataFactory.PRODUCT_ID)).thenReturn(Optional.of(otherRestaurant));
 
@@ -413,6 +459,21 @@ class ProductServiceImplTest {
         ProductDocument inactive = CatalogTestDataFactory.simpleProduct("product-1", CatalogTestDataFactory.RESTAURANT_ID, CatalogTestDataFactory.CATEGORY_ID);
         inactive.setIsActive(Boolean.FALSE);
         when(productRepository.findAllById(any())).thenReturn(List.of(inactive));
+        assertThatThrownBy(() -> productService.reorderProducts(new ReorderProductsRequest(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.CATEGORY_ID,
+                List.of(new ProductReorderItemRequest("product-1", 1))
+        ))).isInstanceOf(CatalogValidationException.class);
+
+        when(productRepository.findAllById(any())).thenReturn(java.util.Collections.singletonList(null));
+        assertThatThrownBy(() -> productService.reorderProducts(new ReorderProductsRequest(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.CATEGORY_ID,
+                List.of(new ProductReorderItemRequest("product-1", 1))
+        ))).isInstanceOf(CatalogValidationException.class);
+
+        ProductDocument wrongRestaurant = CatalogTestDataFactory.simpleProduct("product-1", "other-restaurant", CatalogTestDataFactory.CATEGORY_ID);
+        when(productRepository.findAllById(any())).thenReturn(List.of(wrongRestaurant));
         assertThatThrownBy(() -> productService.reorderProducts(new ReorderProductsRequest(
                 CatalogTestDataFactory.RESTAURANT_ID,
                 CatalogTestDataFactory.CATEGORY_ID,

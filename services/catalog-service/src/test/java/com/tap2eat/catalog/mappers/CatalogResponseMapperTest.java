@@ -60,15 +60,19 @@ class CatalogResponseMapperTest {
         assertThat(response.modifierGroups()).isEmpty();
         assertThat(response.availability().weeklySchedule()).isEmpty();
         assertThat(mapper.toProductResponses(List.of(product))).hasSize(1);
+        assertThat(mapper.toRestaurantResponses(List.of(CatalogTestDataFactory.restaurant()))).hasSize(1);
     }
 
     @Test
     void mapper_shouldMapNullNestedItemsInCollections() {
         ProductDocument product = CatalogTestDataFactory.customizableProduct();
         product.getAvailability().setWeeklySchedule(Arrays.asList(null, product.getAvailability().getWeeklySchedule().getFirst()));
-        product.getAvailability().getWeeklySchedule().get(1).setTimeRanges(Arrays.asList(null, CatalogTestDataFactory.timeRange("10:00", "11:00")));
+        product.getAvailability().getWeeklySchedule().get(1).setTimeRanges(null);
         product.setModifierGroups(Arrays.asList(null, CatalogTestDataFactory.modifierGroup()));
-        product.getModifierGroups().get(1).setOptions(Arrays.asList(null, CatalogTestDataFactory.modifierOption("option", "Option", true)));
+        product.getModifierGroups().get(1).setOptions(null);
+        ProductDocument productWithoutImageOrAvailability = CatalogTestDataFactory.simpleProduct();
+        productWithoutImageOrAvailability.setImage(null);
+        productWithoutImageOrAvailability.setAvailability(null);
 
         BranchDocument branch = CatalogTestDataFactory.branch();
         branch.setAvailability(null);
@@ -77,7 +81,11 @@ class CatalogResponseMapperTest {
         category.setImage(null);
 
         assertThat(mapper.toProductResponse(product).availability().weeklySchedule().get(0)).isNull();
+        assertThat(mapper.toProductResponse(product).availability().weeklySchedule().get(1).timeRanges()).isEmpty();
         assertThat(mapper.toProductResponse(product).modifierGroups().get(0)).isNull();
+        assertThat(mapper.toProductResponse(product).modifierGroups().get(1).options()).isEmpty();
+        assertThat(mapper.toProductResponse(productWithoutImageOrAvailability).image()).isNull();
+        assertThat(mapper.toProductResponse(productWithoutImageOrAvailability).availability()).isNull();
         assertThat(mapper.toBranchResponse(branch).availability()).isNull();
         assertThat(mapper.toCategoryResponse(category).image()).isNull();
     }

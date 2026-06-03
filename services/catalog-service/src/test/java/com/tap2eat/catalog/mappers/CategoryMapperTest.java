@@ -3,8 +3,16 @@ package com.tap2eat.catalog.mappers;
 import com.tap2eat.catalog.fixtures.CatalogTestDataFactory;
 import com.tap2eat.catalog.dtos.request.category.CreateCategoryRequest;
 import com.tap2eat.catalog.dtos.request.category.UpdateCategoryRequest;
+import com.tap2eat.catalog.dtos.request.product.AvailabilityConfigRequest;
+import com.tap2eat.catalog.dtos.request.product.DailyAvailabilityRequest;
+import com.tap2eat.catalog.dtos.request.product.TimeRangeRequest;
 import com.tap2eat.catalog.models.documents.CategoryDocument;
+import com.tap2eat.catalog.models.enums.AvailabilityStatus;
 import org.junit.jupiter.api.Test;
+
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -65,5 +73,39 @@ class CategoryMapperTest {
         assertThat(document.getDisplayOrder()).isEqualTo(5);
         assertThat(document.getImage()).isNull();
         assertThat(document.getAvailability()).isNull();
+    }
+
+    @Test
+    void mapper_shouldApplyAvailabilityDefaultsAndMapNullNestedItems() {
+        AvailabilityConfigRequest availability = new AvailabilityConfigRequest(
+                null,
+                null,
+                null,
+                Arrays.asList(
+                        null,
+                        new DailyAvailabilityRequest(
+                                DayOfWeek.MONDAY,
+                                null,
+                                Arrays.asList(null, new TimeRangeRequest(LocalTime.of(9, 0), LocalTime.of(10, 0)))
+                        ),
+                        new DailyAvailabilityRequest(DayOfWeek.TUESDAY, Boolean.TRUE, null)
+                )
+        );
+
+        CategoryDocument document = mapper.toDocument(new CreateCategoryRequest(
+                "restaurant-1",
+                "Category",
+                null,
+                null,
+                null,
+                availability
+        ));
+
+        assertThat(document.getAvailability().getStatus()).isEqualTo(AvailabilityStatus.AVAILABLE);
+        assertThat(document.getAvailability().getWeeklySchedule()).hasSize(3);
+        assertThat(document.getAvailability().getWeeklySchedule().get(0)).isNull();
+        assertThat(document.getAvailability().getWeeklySchedule().get(1).getEnabled()).isFalse();
+        assertThat(document.getAvailability().getWeeklySchedule().get(1).getTimeRanges().get(0)).isNull();
+        assertThat(document.getAvailability().getWeeklySchedule().get(2).getTimeRanges()).isEmpty();
     }
 }

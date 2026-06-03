@@ -151,6 +151,144 @@ class CatalogOrderValidationServiceImplTest {
     }
 
     @Test
+    void validateOrder_shouldRejectIncompleteRequestsAndItems() {
+        assertInvalid(null);
+        assertInvalid(new ValidateOrderRequest(" ", CatalogTestDataFactory.BRANCH_ID, List.of()));
+        assertInvalid(new ValidateOrderRequest(CatalogTestDataFactory.RESTAURANT_ID, " ", List.of()));
+        assertInvalid(new ValidateOrderRequest(CatalogTestDataFactory.RESTAURANT_ID, CatalogTestDataFactory.BRANCH_ID, null));
+        assertInvalid(new ValidateOrderRequest(CatalogTestDataFactory.RESTAURANT_ID, CatalogTestDataFactory.BRANCH_ID, List.of()));
+
+        seedRestaurantAndBranch();
+
+        assertInvalid(new ValidateOrderRequest(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.BRANCH_ID,
+                java.util.Collections.singletonList(null)
+        ));
+        assertInvalid(new ValidateOrderRequest(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.BRANCH_ID,
+                List.of(new ValidateOrderItemRequest(" ", 1, List.of()))
+        ));
+        assertInvalid(new ValidateOrderRequest(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.BRANCH_ID,
+                List.of(new ValidateOrderItemRequest(CatalogTestDataFactory.PRODUCT_ID, null, List.of()))
+        ));
+        assertInvalid(new ValidateOrderRequest(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.BRANCH_ID,
+                List.of(new ValidateOrderItemRequest(CatalogTestDataFactory.PRODUCT_ID, -1, List.of()))
+        ));
+    }
+
+    @Test
+    void validateOrder_shouldRejectClosedOrForeignBranch() {
+        RestaurantDocument restaurant = CatalogTestDataFactory.restaurant();
+        when(restaurantRepository.findByIdAndIsActiveTrueAndDeletedAtIsNull(CatalogTestDataFactory.RESTAURANT_ID))
+                .thenReturn(Optional.of(restaurant));
+        when(branchRepository.findById(CatalogTestDataFactory.BRANCH_ID))
+                .thenReturn(Optional.of(CatalogTestDataFactory.branch(
+                        CatalogTestDataFactory.BRANCH_ID,
+                        CatalogTestDataFactory.RESTAURANT_ID,
+                        CatalogTestDataFactory.closedAvailability()
+                )));
+
+        assertInvalid(request());
+
+        when(branchRepository.findById(CatalogTestDataFactory.BRANCH_ID))
+                .thenReturn(Optional.of(CatalogTestDataFactory.branch(
+                        CatalogTestDataFactory.BRANCH_ID,
+                        "other-restaurant",
+                        CatalogTestDataFactory.openAvailability()
+                )));
+
+        assertInvalid(request());
+    }
+
+    @Test
+    void validateOrder_shouldRejectForeignProductOrUnavailableCategory() {
+        ProductDocument foreignProduct = CatalogTestDataFactory.simpleProduct(
+                CatalogTestDataFactory.PRODUCT_ID,
+                "other-restaurant",
+                CatalogTestDataFactory.CATEGORY_ID
+        );
+        seedRestaurantBranchAndProduct(foreignProduct);
+
+        assertInvalid(request());
+
+        ProductDocument product = CatalogTestDataFactory.simpleProduct();
+        CategoryDocument unavailableCategory = CatalogTestDataFactory.category(
+                CatalogTestDataFactory.CATEGORY_ID,
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.closedAvailability()
+        );
+        seedBaseCatalog(CatalogTestDataFactory.branch(), unavailableCategory, product);
+
+        assertInvalid(request());
+    }
+
+    @Test
+    void validateOrder_shouldAllowProductWithoutCategoryAndNullSelectionList() {
+        ProductDocument product = CatalogTestDataFactory.simpleProduct();
+        product.setCategoryId(null);
+        seedRestaurantBranchAndProduct(product);
+
+        ValidateOrderResponse response = service.validateOrder(new ValidateOrderRequest(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.BRANCH_ID,
+                List.of(new ValidateOrderItemRequest(CatalogTestDataFactory.PRODUCT_ID, 2, null))
+        ));
+
+        assertThat(response.total()).isEqualByComparingTo(BigDecimal.valueOf(70));
+    }
+
+    @Test
+    void validateOrder_shouldRejectBlankModifierAndHandleNullModifierCollections() {
+        seedValidCatalog(CatalogTestDataFactory.customizableProduct());
+
+        assertInvalid(request(" "));
+
+        ProductDocument productWithoutGroups = CatalogTestDataFactory.simpleProduct();
+        productWithoutGroups.setModifierGroups(null);
+        seedRestaurantBranchAndProduct(productWithoutGroups);
+
+        assertInvalid(request("missing-option"));
+
+        ProductDocument productWithNullOptions = CatalogTestDataFactory.customizableProduct();
+        productWithNullOptions.getModifierGroups().getFirst().setOptions(null);
+        seedRestaurantBranchAndProduct(productWithNullOptions);
+
+        assertInvalid(request("missing-option"));
+    }
+
+    @Test
+    void validateOrder_shouldIgnoreInactiveModifierGroupsAndOptions() {
+        ProductDocument product = CatalogTestDataFactory.customizableProduct();
+        product.getModifierGroups().getFirst().setIsActive(Boolean.FALSE);
+        seedRestaurantBranchAndProduct(product);
+
+        assertInvalid(request("option-1"));
+
+        ProductDocument productWithInactiveOption = CatalogTestDataFactory.customizableProduct();
+        productWithInactiveOption.getModifierGroups().getFirst().getOptions().getFirst().setIsActive(Boolean.FALSE);
+        seedRestaurantBranchAndProduct(productWithInactiveOption);
+
+        assertInvalid(request("option-1"));
+    }
+
+    @Test
+    void validateOrder_shouldTreatNullPricesAsZero() {
+        ProductDocument product = CatalogTestDataFactory.simpleProduct();
+        product.setPrice(null);
+        seedValidCatalog(product);
+
+        ValidateOrderResponse response = service.validateOrder(request());
+
+        assertThat(response.total()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
     void validateOrder_whenSchedulesAreEmpty_shouldTreatResourcesAsAvailable() {
         AvailabilityConfig emptySchedule = new AvailabilityConfig();
         emptySchedule.setStatus(AvailabilityStatus.AVAILABLE);

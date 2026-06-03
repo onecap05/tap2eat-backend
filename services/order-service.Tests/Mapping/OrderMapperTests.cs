@@ -20,6 +20,41 @@ public sealed class OrderMapperTests
     }
 
     [Fact]
+    public void ToDocument_FromRequest_ShouldMapEmptyModifiersAndNotes()
+    {
+        var request = OrderTestData.CreateOrderRequest();
+
+        var document = OrderMapper.ToDocument(request);
+
+        document.CustomerAccountId.Should().Be(request.CustomerAccountId);
+        document.RestaurantId.Should().Be(request.RestaurantId);
+        document.BranchId.Should().Be(request.BranchId);
+        document.Notes.Should().Be("No onion");
+        document.Items.Should().ContainSingle();
+        document.Items[0].SelectedModifiers.Should().BeEmpty();
+        document.Subtotal.Should().Be(100);
+        document.Total.Should().Be(100);
+        document.Status.Should().Be(OrderStatus.Created);
+    }
+
+    [Fact]
+    public void ToDocument_FromRequest_ShouldMapCompleteModifiers()
+    {
+        var request = OrderTestData.CreateOrderRequestWithModifier();
+
+        var document = OrderMapper.ToDocument(request);
+
+        document.Items.Should().ContainSingle();
+        document.Items[0].SelectedModifiers.Should().ContainSingle();
+        document.Items[0].SelectedModifiers[0].ModifierGroupId.Should().Be("group-1");
+        document.Items[0].SelectedModifiers[0].ModifierGroupName.Should().Be("Extras");
+        document.Items[0].SelectedModifiers[0].ModifierOptionId.Should().Be("option-1");
+        document.Items[0].SelectedModifiers[0].ModifierOptionName.Should().Be("Cheese");
+        document.Items[0].SelectedModifiers[0].PriceAdjustment.Should().Be(15);
+        document.Total.Should().Be(230);
+    }
+
+    [Fact]
     public void ToDocument_ShouldCalculateProductSubtotalWithModifiers()
     {
         var request = OrderTestData.CreateOrderRequestWithModifier();
@@ -109,6 +144,32 @@ public sealed class OrderMapperTests
     }
 
     [Fact]
+    public void ToResponse_ShouldMapCompleteModifiers()
+    {
+        var document = OrderTestData.OrderDocument();
+        document.Items[0].SelectedModifiers =
+        [
+            new OrderService.Domain.Embedded.SelectedModifier
+            {
+                ModifierGroupId = "group-1",
+                ModifierGroupName = "Extras",
+                ModifierOptionId = "option-1",
+                ModifierOptionName = "Cheese",
+                PriceAdjustment = 15
+            }
+        ];
+
+        var response = OrderMapper.ToResponse(document);
+
+        response.Items[0].SelectedModifiers.Should().ContainSingle();
+        response.Items[0].SelectedModifiers[0].ModifierGroupId.Should().Be("group-1");
+        response.Items[0].SelectedModifiers[0].ModifierGroupName.Should().Be("Extras");
+        response.Items[0].SelectedModifiers[0].ModifierOptionId.Should().Be("option-1");
+        response.Items[0].SelectedModifiers[0].ModifierOptionName.Should().Be("Cheese");
+        response.Items[0].SelectedModifiers[0].PriceAdjustment.Should().Be(15);
+    }
+
+    [Fact]
     public void ToPublicTrackingResponse_ShouldNotExposeCustomerAccountIdOrInternalItemIds()
     {
         var document = OrderTestData.OrderDocument(publicTrackingCode: "track-code-1");
@@ -134,5 +195,50 @@ public sealed class OrderMapperTests
 
         response.EstimatedPreparationMinutes.Should().Be(20);
         response.EstimatedReadyAt.Should().Be(estimatedReadyAt);
+    }
+
+    [Fact]
+    public void ToPublicTrackingResponse_WhenOrderIdIsShort_ShouldUseUppercaseOrderId()
+    {
+        var document = OrderTestData.OrderDocument(id: "abc123");
+
+        var response = OrderMapper.ToPublicTrackingResponse(document);
+
+        response.ShortOrderId.Should().Be("ABC123");
+    }
+
+    [Fact]
+    public void ToPublicTrackingResponse_WhenOrderIdIsMissing_ShouldUseEmptyShortOrderId()
+    {
+        var document = OrderTestData.OrderDocument();
+        document.Id = null;
+
+        var response = OrderMapper.ToPublicTrackingResponse(document);
+
+        response.ShortOrderId.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ToPublicTrackingResponse_ShouldMapPublicModifiersWithoutInternalIds()
+    {
+        var document = OrderTestData.OrderDocument();
+        document.Items[0].SelectedModifiers =
+        [
+            new OrderService.Domain.Embedded.SelectedModifier
+            {
+                ModifierGroupId = "group-1",
+                ModifierGroupName = "Extras",
+                ModifierOptionId = "option-1",
+                ModifierOptionName = "Cheese",
+                PriceAdjustment = 15
+            }
+        ];
+
+        var response = OrderMapper.ToPublicTrackingResponse(document);
+
+        response.Items[0].SelectedModifiers.Should().ContainSingle();
+        response.Items[0].SelectedModifiers[0].ModifierGroupName.Should().Be("Extras");
+        response.Items[0].SelectedModifiers[0].ModifierOptionName.Should().Be("Cheese");
+        response.Items[0].SelectedModifiers[0].PriceAdjustment.Should().Be(15);
     }
 }

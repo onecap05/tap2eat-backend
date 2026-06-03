@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using OrderService.Exceptions;
@@ -45,6 +46,37 @@ public sealed class CatalogClientTests
     }
 
     [Fact]
+    public async Task ValidateOrderAsync_WhenSelectedModifierOptionIdsAreEmpty_ShouldUseSelectedModifiers()
+    {
+        var handler = FakeHttpMessageHandler.Json(HttpStatusCode.OK, OrderTestData.ValidatedOrderResponse());
+        var client = CreateClient(handler);
+        var request = OrderTestData.CreateOrderRequestWithModifier();
+        request.Items[0].SelectedModifierOptionIds = [];
+
+        await client.ValidateOrderAsync(request);
+
+        var body = JsonSerializer.Deserialize<ValidateOrderRequest>(
+            handler.LastRequestBody!,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+        body!.Items[0].SelectedModifierOptionIds.Should().ContainSingle("option-1");
+    }
+
+    [Fact]
+    public async Task ValidateOrderAsync_WhenInternalTokenIsEmpty_ShouldNotSendTokenHeader()
+    {
+        var handler = FakeHttpMessageHandler.Json(HttpStatusCode.OK, OrderTestData.ValidatedOrderResponse());
+        var client = CreateClient(handler, internalToken: "");
+
+        await client.ValidateOrderAsync(OrderTestData.CreateOrderRequest());
+
+        handler.LastRequest!.Headers.Contains("X-Internal-Service-Token").Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ValidateOrderAsync_ShouldInterpretValidResponse()
     {
         var expected = OrderTestData.ValidatedOrderResponse(unitPrice: 75, modifierPrice: 15);
@@ -59,10 +91,47 @@ public sealed class CatalogClientTests
 
     [Theory]
     [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.NotFound)]
     [InlineData(HttpStatusCode.Conflict)]
     public async Task ValidateOrderAsync_WhenCatalogRejectsRequest_ShouldThrowValidation(HttpStatusCode statusCode)
     {
         var client = CreateClient(FakeHttpMessageHandler.Json(statusCode, new { message = "Invalid" }));
+
+        var act = async () => await client.ValidateOrderAsync(OrderTestData.CreateOrderRequest());
+
+        await act.Should().ThrowAsync<CatalogValidationException>();
+    }
+
+    [Fact]
+    public async Task ValidateOrderAsync_WhenCatalogReturnsInvalidJson_ShouldThrowJsonException()
+    {
+        var handler = new FakeHttpMessageHandler((_, _) => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("not-json", Encoding.UTF8, "application/json")
+        });
+        var client = CreateClient(handler);
+
+        var act = async () => await client.ValidateOrderAsync(OrderTestData.CreateOrderRequest());
+
+        await act.Should().ThrowAsync<JsonException>();
+    }
+
+    [Fact]
+    public async Task ValidateOrderAsync_WhenCatalogReturnsEmptyBody_ShouldThrowJsonException()
+    {
+        var client = CreateClient(new FakeHttpMessageHandler((_, _) => new HttpResponseMessage(HttpStatusCode.OK)));
+
+        var act = async () => await client.ValidateOrderAsync(OrderTestData.CreateOrderRequest());
+
+        await act.Should().ThrowAsync<JsonException>();
+    }
+
+    [Fact]
+    public async Task ValidateOrderAsync_WhenCatalogReturnsInvalidValidationResponse_ShouldThrowCatalogValidation()
+    {
+        var invalidResponse = OrderTestData.ValidatedOrderResponse();
+        invalidResponse.Valid = false;
+        var client = CreateClient(FakeHttpMessageHandler.Json(HttpStatusCode.OK, invalidResponse));
 
         var act = async () => await client.ValidateOrderAsync(OrderTestData.CreateOrderRequest());
 
@@ -80,6 +149,17 @@ public sealed class CatalogClientTests
     }
 
     [Fact]
+    public async Task ValidateOrderAsync_WhenHttpClientThrows_ShouldThrowUnavailable()
+    {
+        var handler = new FakeHttpMessageHandler((_, _) => throw new HttpRequestException("Network unavailable."));
+        var client = CreateClient(handler);
+
+        var act = async () => await client.ValidateOrderAsync(OrderTestData.CreateOrderRequest());
+
+        await act.Should().ThrowAsync<CatalogServiceUnavailableException>();
+    }
+
+    [Fact]
     public async Task ValidateOrderAsync_WhenCatalogTimesOut_ShouldThrowUnavailable()
     {
         var handler = new FakeHttpMessageHandler((_, _) => throw new TaskCanceledException());
@@ -90,7 +170,9 @@ public sealed class CatalogClientTests
         await act.Should().ThrowAsync<CatalogServiceUnavailableException>();
     }
 
-    private static CatalogClient CreateClient(HttpMessageHandler handler)
+    private static CatalogClient CreateClient(
+        HttpMessageHandler handler,
+        string internalToken = "test-internal-token")
     {
         var httpClient = new HttpClient(handler)
         {
@@ -100,7 +182,7 @@ public sealed class CatalogClientTests
         var options = Options.Create(new CatalogServiceSettings
         {
             BaseUrl = "http://catalog-service",
-            InternalServiceToken = "test-internal-token"
+            InternalServiceToken = internalToken
         });
 
         return new CatalogClient(httpClient, options);

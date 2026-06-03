@@ -39,6 +39,32 @@ public sealed class RecommendationsControllerTests
     }
 
     [Fact]
+    public async Task GetForCustomer_ShouldReturnOkResponse()
+    {
+        var expected = new[]
+        {
+            new BranchRecommendationResponse { BranchId = "branch-1", RecommendationType = "TASTE_BASED" }
+        };
+        var service = new Mock<IRecommendationService>();
+        service
+            .Setup(item => item.GetForCustomerAsync(
+                "customer-1",
+                It.IsAny<RecommendationQueryRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        var controller = new RecommendationsController(service.Object);
+
+        var response = await controller.GetForCustomer(
+            "customer-1",
+            new RecommendationQueryRequest(),
+            CancellationToken.None);
+
+        response.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().Be(expected);
+    }
+
+    [Fact]
     public async Task GetCustomerSections_ShouldReturnOkResponse()
     {
         var service = new Mock<IRecommendationService>();
@@ -69,6 +95,34 @@ public sealed class RecommendationsControllerTests
             CancellationToken.None);
 
         response.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Fact]
+    public async Task GetNearestBranch_ShouldReturnOkResponse()
+    {
+        var expected = new RecommendedBranchResponse
+        {
+            RestaurantId = "restaurant-1",
+            BranchId = "branch-1",
+            Reason = "Cerca de ti"
+        };
+        var service = new Mock<IRecommendationService>();
+        service
+            .Setup(item => item.GetNearestBranchAsync(
+                "restaurant-1",
+                It.IsAny<RecommendationQueryRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        var controller = new RecommendationsController(service.Object);
+
+        var response = await controller.GetNearestBranch(
+            "restaurant-1",
+            new RecommendationQueryRequest(),
+            CancellationToken.None);
+
+        response.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().Be(expected);
     }
 
     [Fact]

@@ -1,9 +1,12 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using RecommendationService.Integrations.Catalog;
 using RecommendationService.Messaging.Consumers;
 using RecommendationService.Messaging.Events;
+using RecommendationService.Repositories;
 using RecommendationService.Tests.Fakes;
+using System.Text.Json;
 
 namespace RecommendationService.Tests.Messaging;
 
@@ -62,6 +65,72 @@ public sealed class OrderDeliveredEventProcessorTests
     }
 
     [Fact]
+    public async Task ProcessRawAsync_WhenDeliveredEvent_ShouldSaveGraphUpdate()
+    {
+        var graph = new FakeGraphRepository();
+        var processor = CreateProcessor(graph: graph);
+        var rawMessage = JsonSerializer.Serialize(new OrderStatusChangedEvent
+        {
+            EventType = "order.status.changed",
+            OrderId = "order-1",
+            CustomerAccountId = "customer-1",
+            RestaurantId = "restaurant-1",
+            BranchId = "branch-1",
+            NewStatus = "Delivered",
+            Items =
+            [
+                new OrderStatusChangedItemEvent
+                {
+                    ProductId = "product-1",
+                    Quantity = 0,
+                    ProductNameSnapshot = "Snapshot"
+                }
+            ]
+        });
+
+        await processor.ProcessRawAsync(rawMessage);
+
+        graph.SavedUpdates.Should().ContainSingle();
+        graph.SavedUpdates[0].Products.Should().ContainSingle();
+        graph.SavedUpdates[0].Products[0].Quantity.Should().Be(1);
+        graph.SavedUpdates[0].Products[0].ProductNameSnapshot.Should().Be("Snapshot");
+    }
+
+    [Fact]
+    public async Task ProcessRawAsync_WhenEventTypeIsMissing_ShouldIgnoreMessage()
+    {
+        var graph = new FakeGraphRepository();
+        var processor = CreateProcessor(graph: graph);
+
+        await processor.ProcessRawAsync("""{"OrderId":"order-1"}""");
+
+        graph.SavedUpdates.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProcessRawAsync_WhenEventTypeIsUnsupported_ShouldIgnoreMessage()
+    {
+        var graph = new FakeGraphRepository();
+        var processor = CreateProcessor(graph: graph);
+
+        await processor.ProcessRawAsync("""{"EventType":"order.created","OrderId":"order-1"}""");
+
+        graph.SavedUpdates.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProcessRawAsync_WhenJsonIsInvalid_ShouldIgnoreMessage()
+    {
+        var graph = new FakeGraphRepository();
+        var processor = CreateProcessor(graph: graph);
+
+        var action = () => processor.ProcessRawAsync("{ invalid-json");
+
+        await action.Should().NotThrowAsync();
+        graph.SavedUpdates.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ProcessAsync_WhenDeliveredWithoutProductIds_ShouldSaveOrderGraphWithoutThrowing()
     {
         var graph = new FakeGraphRepository();
@@ -82,6 +151,33 @@ public sealed class OrderDeliveredEventProcessorTests
 
         graph.SavedUpdates.Should().ContainSingle();
         graph.SavedUpdates[0].Products.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WhenGraphRepositoryFails_ShouldPropagateException()
+    {
+        var graph = new Mock<IRecommendationGraphRepository>();
+        graph
+            .Setup(item => item.UpsertDeliveredOrderAsync(
+                It.IsAny<DeliveredOrderGraphUpdate>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Neo4j write failed."));
+        var processor = new OrderDeliveredEventProcessor(
+            new FakeCatalogClient(),
+            graph.Object,
+            NullLogger<OrderDeliveredEventProcessor>.Instance);
+
+        var action = () => processor.ProcessAsync(new OrderStatusChangedEvent
+        {
+            OrderId = "order-1",
+            CustomerAccountId = "customer-1",
+            RestaurantId = "restaurant-1",
+            BranchId = "branch-1",
+            NewStatus = "Delivered"
+        });
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Neo4j write failed.");
     }
 
     private static OrderDeliveredEventProcessor CreateProcessor(

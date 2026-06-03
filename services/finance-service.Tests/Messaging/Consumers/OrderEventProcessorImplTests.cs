@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FinanceService.Exceptions;
 using FinanceService.Messaging.Consumers;
 using FinanceService.Messaging.Events;
 using FinanceService.Services.Interfaces;
@@ -34,6 +35,47 @@ public sealed class OrderEventProcessorImplTests
                 It.Is<OrderCreatedEvent>(message => message.OrderId == orderEvent.OrderId),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessesOrderCreated_WithIncompleteEvent_PropagatesPaymentServiceValidationError()
+    {
+        var rawMessage = """
+            {
+              "EventType": "order.created",
+              "OrderId": "",
+              "CustomerAccountId": "customer-1",
+              "RestaurantId": "restaurant-1",
+              "BranchId": "branch-1",
+              "Total": 150.75
+            }
+            """;
+        _paymentService
+            .Setup(service => service.CreatePendingPaymentFromOrderAsync(
+                It.Is<OrderCreatedEvent>(message => message.OrderId == ""),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new FinanceValidationException("OrderId is required."));
+
+        var action = () => _processor.ProcessAsync(rawMessage);
+
+        await action.Should().ThrowAsync<FinanceValidationException>();
+    }
+
+    [Fact]
+    public async Task ProcessesOrderCreated_WhenPaymentServiceFails_PropagatesException()
+    {
+        var orderEvent = PaymentTestData.OrderCreatedEvent();
+        var rawMessage = JsonSerializer.Serialize(orderEvent);
+        _paymentService
+            .Setup(service => service.CreatePendingPaymentFromOrderAsync(
+                It.IsAny<OrderCreatedEvent>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Unexpected processing failure."));
+
+        var action = () => _processor.ProcessAsync(rawMessage);
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Unexpected processing failure.");
     }
 
     [Fact]

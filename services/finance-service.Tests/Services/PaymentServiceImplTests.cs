@@ -1,11 +1,14 @@
 using FinanceService.Domain.Enums;
 using FinanceService.Dtos.Requests;
 using FinanceService.Exceptions;
+using FinanceService.Messaging.Publishers;
+using FinanceService.Repositories.Interfaces;
 using FinanceService.Services.Implementations;
 using FinanceService.Tests.Fakes;
 using FinanceService.Tests.TestData;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace FinanceService.Tests.Services;
 
@@ -73,6 +76,57 @@ public sealed class PaymentServiceImplTests
         await action.Should().ThrowAsync<FinanceValidationException>();
     }
 
+    [Theory]
+    [InlineData("", "OrderId")]
+    [InlineData(" ", "OrderId")]
+    public async Task CreatePendingPaymentFromOrderAsync_WhenOrderIdIsMissing_ShouldThrowFinanceValidationException(
+        string orderId,
+        string expectedFieldName)
+    {
+        var orderEvent = PaymentTestData.OrderCreatedEvent(orderId);
+
+        var action = () => _service.CreatePendingPaymentFromOrderAsync(orderEvent);
+
+        await action.Should().ThrowAsync<FinanceValidationException>()
+            .WithMessage($"{expectedFieldName} is required.");
+    }
+
+    [Fact]
+    public async Task CreatePendingPaymentFromOrderAsync_WhenCustomerAccountIdIsMissing_ShouldThrowFinanceValidationException()
+    {
+        var orderEvent = PaymentTestData.OrderCreatedEvent();
+        orderEvent.CustomerAccountId = "";
+
+        var action = () => _service.CreatePendingPaymentFromOrderAsync(orderEvent);
+
+        await action.Should().ThrowAsync<FinanceValidationException>()
+            .WithMessage("CustomerAccountId is required.");
+    }
+
+    [Fact]
+    public async Task CreatePendingPaymentFromOrderAsync_WhenRestaurantIdIsMissing_ShouldThrowFinanceValidationException()
+    {
+        var orderEvent = PaymentTestData.OrderCreatedEvent();
+        orderEvent.RestaurantId = " ";
+
+        var action = () => _service.CreatePendingPaymentFromOrderAsync(orderEvent);
+
+        await action.Should().ThrowAsync<FinanceValidationException>()
+            .WithMessage("RestaurantId is required.");
+    }
+
+    [Fact]
+    public async Task CreatePendingPaymentFromOrderAsync_WhenBranchIdIsMissing_ShouldThrowFinanceValidationException()
+    {
+        var orderEvent = PaymentTestData.OrderCreatedEvent();
+        orderEvent.BranchId = "";
+
+        var action = () => _service.CreatePendingPaymentFromOrderAsync(orderEvent);
+
+        await action.Should().ThrowAsync<FinanceValidationException>()
+            .WithMessage("BranchId is required.");
+    }
+
     [Fact]
     public async Task GetByIdAsync_returnsPayment()
     {
@@ -104,6 +158,42 @@ public sealed class PaymentServiceImplTests
     }
 
     [Fact]
+    public async Task GetByOrderIdAsync_WhenPaymentDoesNotExist_ShouldThrowPaymentNotFoundException()
+    {
+        var action = () => _service.GetByOrderIdAsync("missing-order");
+
+        await action.Should().ThrowAsync<PaymentNotFoundException>();
+    }
+
+    [Fact]
+    public async Task GetByCustomerAccountIdAsync_returnsPaymentsForCustomer()
+    {
+        _repository.Seed(PaymentTestData.Payment(orderId: "customer-order-1"));
+        var otherCustomerPayment = PaymentTestData.Payment(orderId: "customer-order-2");
+        otherCustomerPayment.CustomerAccountId = "customer-2";
+        _repository.Seed(otherCustomerPayment);
+
+        var response = await _service.GetByCustomerAccountIdAsync("customer-1");
+
+        response.Should().ContainSingle()
+            .Which.OrderId.Should().Be("customer-order-1");
+    }
+
+    [Fact]
+    public async Task GetByRestaurantIdAsync_returnsPaymentsForRestaurant()
+    {
+        _repository.Seed(PaymentTestData.Payment(orderId: "restaurant-order-1"));
+        var otherRestaurantPayment = PaymentTestData.Payment(orderId: "restaurant-order-2");
+        otherRestaurantPayment.RestaurantId = "restaurant-2";
+        _repository.Seed(otherRestaurantPayment);
+
+        var response = await _service.GetByRestaurantIdAsync("restaurant-1");
+
+        response.Should().ContainSingle()
+            .Which.OrderId.Should().Be("restaurant-order-1");
+    }
+
+    [Fact]
     public async Task ApproveAsync_WhenPending_ShouldApproveAndPublishPaymentApproved()
     {
         var payment = PaymentTestData.Payment();
@@ -119,6 +209,30 @@ public sealed class PaymentServiceImplTests
         response.ApprovedAt.Should().NotBeNull();
         _publisher.PaymentApprovedCalls.Should().Be(1);
         _publisher.LastApprovedPayment!.Id.Should().Be(payment.Id);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_WhenProviderReferenceIsBlank_ShouldGenerateSimulatedReference()
+    {
+        var payment = PaymentTestData.Payment();
+        _repository.Seed(payment);
+
+        var response = await _service.ApproveAsync(
+            payment.Id,
+            PaymentTestData.ApproveRequest(" "));
+
+        response.Status.Should().Be(PaymentStatus.Approved);
+        response.ProviderReference.Should().StartWith("SIM-");
+        _publisher.PaymentApprovedCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_WhenPaymentDoesNotExist_ShouldThrowPaymentNotFoundExceptionAndNotPublish()
+    {
+        var action = () => _service.ApproveAsync(Guid.NewGuid(), PaymentTestData.ApproveRequest());
+
+        await action.Should().ThrowAsync<PaymentNotFoundException>();
+        _publisher.PaymentApprovedCalls.Should().Be(0);
     }
 
     [Fact]
@@ -175,6 +289,15 @@ public sealed class PaymentServiceImplTests
     }
 
     [Fact]
+    public async Task RejectAsync_WhenPaymentDoesNotExist_ShouldThrowPaymentNotFoundExceptionAndNotPublish()
+    {
+        var action = () => _service.RejectAsync(Guid.NewGuid(), PaymentTestData.RejectRequest());
+
+        await action.Should().ThrowAsync<PaymentNotFoundException>();
+        _publisher.PaymentRejectedCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task CancelAsync_WhenPending_ShouldCancelAndPublishPaymentCancelled()
     {
         var payment = PaymentTestData.Payment();
@@ -199,6 +322,65 @@ public sealed class PaymentServiceImplTests
 
         await action.Should().ThrowAsync<InvalidPaymentStatusTransitionException>();
         _publisher.PaymentCancelledCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CancelAsync_WhenPaymentDoesNotExist_ShouldThrowPaymentNotFoundExceptionAndNotPublish()
+    {
+        var action = () => _service.CancelAsync(Guid.NewGuid());
+
+        await action.Should().ThrowAsync<PaymentNotFoundException>();
+        _publisher.PaymentCancelledCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreatePendingPaymentFromOrderAsync_WhenCreateFailsButPaymentExists_ShouldReturnIdempotentPayment()
+    {
+        var orderEvent = PaymentTestData.OrderCreatedEvent("race-order");
+        var idempotentPayment = PaymentTestData.Payment(orderId: "race-order");
+        var repository = new Mock<IPaymentRepository>();
+        repository
+            .SetupSequence(repo => repo.FindByOrderIdAsync("race-order", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((FinanceService.Domain.Entities.Payment?)null)
+            .ReturnsAsync(idempotentPayment);
+        repository
+            .Setup(repo => repo.CreateAsync(
+                It.IsAny<FinanceService.Domain.Entities.Payment>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Duplicate order."));
+        var service = new PaymentServiceImpl(
+            repository.Object,
+            Mock.Of<IPaymentEventPublisher>(),
+            NullLogger<PaymentServiceImpl>.Instance);
+
+        var response = await service.CreatePendingPaymentFromOrderAsync(orderEvent);
+
+        response.Id.Should().Be(idempotentPayment.Id);
+        response.OrderId.Should().Be("race-order");
+    }
+
+    [Fact]
+    public async Task CreatePendingPaymentFromOrderAsync_WhenCreateFailsAndPaymentStillDoesNotExist_ShouldRethrow()
+    {
+        var orderEvent = PaymentTestData.OrderCreatedEvent("failed-race-order");
+        var repository = new Mock<IPaymentRepository>();
+        repository
+            .Setup(repo => repo.FindByOrderIdAsync("failed-race-order", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((FinanceService.Domain.Entities.Payment?)null);
+        repository
+            .Setup(repo => repo.CreateAsync(
+                It.IsAny<FinanceService.Domain.Entities.Payment>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Duplicate order."));
+        var service = new PaymentServiceImpl(
+            repository.Object,
+            Mock.Of<IPaymentEventPublisher>(),
+            NullLogger<PaymentServiceImpl>.Instance);
+
+        var action = () => service.CreatePendingPaymentFromOrderAsync(orderEvent);
+
+        await action.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Duplicate order.");
     }
 
     [Fact]

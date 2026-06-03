@@ -2,6 +2,7 @@ using FinanceService.Controllers;
 using FinanceService.Domain.Enums;
 using FinanceService.Dtos.Requests;
 using FinanceService.Dtos.Responses;
+using FinanceService.Exceptions;
 using FinanceService.Security;
 using FinanceService.Services.Interfaces;
 using FluentAssertions;
@@ -32,6 +33,69 @@ public sealed class PaymentsControllerTests
 
         result.Result.Should().BeOfType<OkObjectResult>()
             .Which.Value.Should().Be(expectedPayment);
+    }
+
+    [Fact]
+    public async Task GetById_WhenPaymentDoesNotExist_ThrowsPaymentNotFoundException()
+    {
+        var paymentId = Guid.NewGuid();
+        _paymentService
+            .Setup(service => service.GetByIdAsync(paymentId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new PaymentNotFoundException(paymentId.ToString()));
+
+        var controller = CreateController();
+
+        var action = () => controller.GetById(paymentId, CancellationToken.None);
+
+        await action.Should().ThrowAsync<PaymentNotFoundException>();
+    }
+
+    [Fact]
+    public async Task GetByOrderId_returnsOk()
+    {
+        var expectedPayment = Response(Guid.NewGuid(), PaymentStatus.Pending);
+        _paymentService
+            .Setup(service => service.GetByOrderIdAsync("order-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedPayment);
+
+        var controller = CreateController();
+
+        var result = await controller.GetByOrderId("order-1", CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().Be(expectedPayment);
+    }
+
+    [Fact]
+    public async Task GetByCustomerAccountId_returnsOk()
+    {
+        var expectedPayments = new[] { Response(Guid.NewGuid(), PaymentStatus.Pending) };
+        _paymentService
+            .Setup(service => service.GetByCustomerAccountIdAsync("customer-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedPayments);
+
+        var controller = CreateController();
+
+        var result = await controller.GetByCustomerAccountId("customer-1", CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().Be(expectedPayments);
+    }
+
+    [Fact]
+    public async Task GetByRestaurantId_returnsOk()
+    {
+        var expectedPayments = new[] { Response(Guid.NewGuid(), PaymentStatus.Pending) };
+        _paymentService
+            .Setup(service => service.GetByRestaurantIdAsync("restaurant-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedPayments);
+
+        var controller = CreateController();
+
+        var result = await controller.GetByRestaurantId("restaurant-1", CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().Be(expectedPayments);
     }
 
     [Fact]
@@ -104,6 +168,25 @@ public sealed class PaymentsControllerTests
     }
 
     [Fact]
+    public async Task Approve_WithInvalidRequestAndValidToken_PropagatesFinanceValidationException()
+    {
+        var paymentId = Guid.NewGuid();
+        var request = new ApprovePaymentRequest();
+        _tokenValidator
+            .Setup(validator => validator.IsValid("valid-token"))
+            .Returns(true);
+        _paymentService
+            .Setup(service => service.ApproveAsync(paymentId, request, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new FinanceValidationException("Invalid request."));
+
+        var controller = CreateController("valid-token");
+
+        var action = () => controller.Approve(paymentId, request, CancellationToken.None);
+
+        await action.Should().ThrowAsync<FinanceValidationException>();
+    }
+
+    [Fact]
     public async Task Reject_withoutHeader_returnsForbidden()
     {
         _tokenValidator
@@ -149,6 +232,25 @@ public sealed class PaymentsControllerTests
     }
 
     [Fact]
+    public async Task Reject_WithInvalidRequestAndValidToken_PropagatesFinanceValidationException()
+    {
+        var paymentId = Guid.NewGuid();
+        var request = new RejectPaymentRequest();
+        _tokenValidator
+            .Setup(validator => validator.IsValid("valid-token"))
+            .Returns(true);
+        _paymentService
+            .Setup(service => service.RejectAsync(paymentId, request, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new FinanceValidationException("Rejection reason is required."));
+
+        var controller = CreateController("valid-token");
+
+        var action = () => controller.Reject(paymentId, request, CancellationToken.None);
+
+        await action.Should().ThrowAsync<FinanceValidationException>();
+    }
+
+    [Fact]
     public async Task Cancel_withoutHeader_returnsForbidden()
     {
         _tokenValidator
@@ -184,6 +286,24 @@ public sealed class PaymentsControllerTests
 
         result.Result.Should().BeOfType<OkObjectResult>()
             .Which.Value.Should().Be(expectedPayment);
+    }
+
+    [Fact]
+    public async Task Cancel_WhenPaymentDoesNotExistAndTokenIsValid_PropagatesPaymentNotFoundException()
+    {
+        var paymentId = Guid.NewGuid();
+        _tokenValidator
+            .Setup(validator => validator.IsValid("valid-token"))
+            .Returns(true);
+        _paymentService
+            .Setup(service => service.CancelAsync(paymentId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new PaymentNotFoundException(paymentId.ToString()));
+
+        var controller = CreateController("valid-token");
+
+        var action = () => controller.Cancel(paymentId, CancellationToken.None);
+
+        await action.Should().ThrowAsync<PaymentNotFoundException>();
     }
 
     [Fact]

@@ -29,6 +29,37 @@ class GatewayRouteConfigTest {
     }
 
     @Test
+    void shouldRoutePublicAuthEndpointsToIdentityService() {
+        assertRoute(0, "identity-service", "http://identity-service:8081", "Path=/api/auth/**");
+    }
+
+    @Test
+    void shouldRouteProtectedCatalogProductsToCatalogService() {
+        assertRoute(4, "catalog-products", "http://catalog-service:8082", "Path=/api/products/**");
+    }
+
+    @Test
+    void shouldRouteProtectedOrdersToOrderService() {
+        assertRoute(7, "order-service", "http://order-service:8085", "Path=/api/orders/**");
+    }
+
+    @Test
+    void shouldRouteProtectedPaymentsToFinanceService() {
+        assertRoute(13, "finance-service-payments", "http://finance-service:8083", "Path=/api/payments/**");
+    }
+
+    @Test
+    void shouldRouteProtectedReportsToReportsService() {
+        assertRoute(9, "reports-python", "http://reports-python:8000", "Path=/api/reports/**");
+    }
+
+    @Test
+    void shouldRouteHealthActuatorAsExposedEndpoint() {
+        assertThat(properties.getProperty("management.endpoints.web.exposure.include"))
+                .isEqualTo("health,info");
+    }
+
+    @Test
     void shouldRouteNativeWebSocketTransportWithWsScheme() {
         assertThat(properties.getProperty("spring.cloud.gateway.server.webflux.routes[14].id"))
                 .isEqualTo("notification-websocket-native");
@@ -61,5 +92,14 @@ class GatewayRouteConfigTest {
         } catch (IOException exception) {
             throw new IllegalStateException("Could not load application.properties", exception);
         }
+    }
+
+    private void assertRoute(int index, String id, String uri, String predicate) {
+        assertThat(properties.getProperty("spring.cloud.gateway.server.webflux.routes[%d].id".formatted(index)))
+                .isEqualTo(id);
+        assertThat(properties.getProperty("spring.cloud.gateway.server.webflux.routes[%d].uri".formatted(index)))
+                .isEqualTo(uri);
+        assertThat(properties.getProperty("spring.cloud.gateway.server.webflux.routes[%d].predicates[0]".formatted(index)))
+                .isEqualTo(predicate);
     }
 }

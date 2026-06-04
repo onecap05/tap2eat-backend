@@ -1,5 +1,6 @@
 package com.tap2eat.notification.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.Queue;
@@ -81,6 +82,63 @@ class RabbitMqConfigTest {
         assertEquals("tap2eat.notifications.payments", binding.getDestination());
         assertEquals("tap2eat.payments", binding.getExchange());
         assertEquals("payment.#", binding.getRoutingKey());
+    }
+
+    @Test
+    void shouldExposeDefaultDestinations() {
+        RabbitMqProperties properties = new RabbitMqProperties();
+
+        assertEquals("tap2eat.orders", properties.getOrders().getExchangeName());
+        assertEquals("tap2eat.notifications.orders", properties.getOrders().getQueueName());
+        assertEquals("order.#", properties.getOrders().getRoutingKey());
+        assertEquals("tap2eat.payments", properties.getPayments().getExchangeName());
+        assertEquals("tap2eat.notifications.payments", properties.getPayments().getQueueName());
+        assertEquals("payment.#", properties.getPayments().getRoutingKey());
+    }
+
+    @Test
+    void shouldSupportLegacyOrderAccessors() {
+        RabbitMqProperties properties = new RabbitMqProperties();
+
+        properties.setExchangeName("legacy.orders");
+        properties.setQueueName("legacy.notifications");
+        properties.setRoutingKey("legacy.#");
+
+        assertEquals("legacy.orders", properties.getExchangeName());
+        assertEquals("legacy.notifications", properties.getQueueName());
+        assertEquals("legacy.#", properties.getRoutingKey());
+        assertEquals("legacy.orders", properties.getOrders().getExchangeName());
+    }
+
+    @Test
+    void shouldReplaceNestedDestinations() {
+        RabbitMqProperties properties = new RabbitMqProperties();
+        RabbitMqProperties.DestinationProperties orders = new RabbitMqProperties.DestinationProperties();
+        orders.setExchangeName("orders.exchange");
+        orders.setQueueName("orders.queue");
+        orders.setRoutingKey("orders.routing");
+        RabbitMqProperties.DestinationProperties payments = new RabbitMqProperties.DestinationProperties(
+                "payments.exchange",
+                "payments.queue",
+                "payments.routing"
+        );
+
+        properties.setOrders(orders);
+        properties.setPayments(payments);
+
+        assertEquals("orders.exchange", properties.getOrders().getExchangeName());
+        assertEquals("orders.queue", properties.getOrders().getQueueName());
+        assertEquals("orders.routing", properties.getOrders().getRoutingKey());
+        assertEquals("payments.exchange", properties.getPayments().getExchangeName());
+        assertEquals("payments.queue", properties.getPayments().getQueueName());
+        assertEquals("payments.routing", properties.getPayments().getRoutingKey());
+    }
+
+    @Test
+    void shouldCreateObjectMapperWhenMissing() {
+        ObjectMapper objectMapper = config.orderEventObjectMapper();
+
+        assertEquals(ObjectMapper.class, objectMapper.getClass());
     }
 
     private RabbitMqProperties properties(String exchangeName, String queueName, String routingKey) {

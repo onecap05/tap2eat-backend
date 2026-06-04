@@ -19,7 +19,9 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.ArgumentMatchers.any;
@@ -179,6 +181,59 @@ class OrderEventListenerTest {
         assertDoesNotThrow(() -> listener.handleOrderEvent(rawMessage));
 
         verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void whenEventTypeAliasIsUnknown_shouldIgnoreMessage() {
+        String rawMessage = """
+                {
+                  "EventId": "event-alias",
+                  "eventType": "order.cancelled",
+                  "OrderId": "order-alias"
+                }
+                """;
+
+        assertDoesNotThrow(() -> listener.handleOrderEvent(rawMessage));
+
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void whenEventTypeIsMissing_shouldIgnoreMessage() {
+        String rawMessage = """
+                {
+                  "OrderId": "order-4"
+                }
+                """;
+
+        assertDoesNotThrow(() -> listener.handleOrderEvent(rawMessage));
+
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void whenNotificationServiceFails_shouldPropagateError() {
+        String rawMessage = """
+                {
+                  "EventId": "event-error",
+                  "EventType": "order.created",
+                  "OrderId": "order-error",
+                  "CustomerAccountId": "customer-error",
+                  "RestaurantId": "restaurant-error",
+                  "BranchId": "branch-error",
+                  "Subtotal": 10.00,
+                  "Total": 12.00,
+                  "Status": "CREATED",
+                  "CreatedAt": "2026-05-22T10:15:30Z",
+                  "OccurredAt": "2026-05-22T10:15:31Z"
+                }
+                """;
+        RuntimeException failure = new RuntimeException("realtime unavailable");
+        doThrow(failure).when(notificationService).handleOrderCreated(any(OrderCreatedEvent.class));
+
+        RuntimeException thrown = assertThrows(RuntimeException.class, () -> listener.handleOrderEvent(rawMessage));
+
+        assertEquals(failure, thrown);
     }
 
     @Test

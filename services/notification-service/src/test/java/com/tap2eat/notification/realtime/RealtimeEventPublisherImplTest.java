@@ -15,11 +15,14 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class RealtimeEventPublisherImplTest {
 
@@ -157,6 +160,27 @@ class RealtimeEventPublisherImplTest {
                 eq("/topic/restaurants//payments"),
                 any(Object.class)
         );
+    }
+
+    @Test
+    void publishOrderCreated_shouldSkipTopicsWhenDestinationIdsAreNull() {
+        OrderCreatedEvent event = orderCreatedEvent(null, null);
+
+        publisher.publishOrderCreated(event);
+
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
+    void publishPaymentApproved_whenMessagingTemplateFails_shouldPropagateError() {
+        PaymentApprovedEvent event = paymentApprovedEvent("customer-error", "restaurant-error");
+        doThrow(new RuntimeException("websocket unavailable"))
+                .when(messagingTemplate)
+                .convertAndSend(eq("/topic/customers/customer-error/payments"), any(RealtimePaymentEventMessage.class));
+
+        assertThatThrownBy(() -> publisher.publishPaymentApproved(event))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("websocket unavailable");
     }
 
     private void verifyPaymentTopics(String customerAccountId, String restaurantId) {

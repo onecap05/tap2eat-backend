@@ -68,6 +68,25 @@ class NotificationGrpcServiceTest {
         assertThat(responseObserver.error()).isNull();
     }
 
+    @Test
+    void sendVerificationEmail_whenRequestIsEmptyAndServiceRejectsIt_shouldReturnFailureResponse() {
+        SendVerificationEmailRequest request = SendVerificationEmailRequest.newBuilder().build();
+        TestStreamObserver responseObserver = new TestStreamObserver();
+        doThrow(new IllegalArgumentException("invalid request"))
+                .when(emailSenderService)
+                .sendVerificationEmail("", "");
+        when(messageSource.getMessage("notification.grpc.verification.failure", null, Locale.getDefault()))
+                .thenReturn("Failed to send verification email.");
+
+        grpcService.sendVerificationEmail(request, responseObserver);
+
+        verify(emailSenderService).sendVerificationEmail("", "");
+        assertThat(responseObserver.response().getSuccess()).isFalse();
+        assertThat(responseObserver.response().getMessage()).isEqualTo("Failed to send verification email.");
+        assertThat(responseObserver.completed()).isTrue();
+        assertThat(responseObserver.error()).isNull();
+    }
+
     private static SendVerificationEmailRequest request() {
         return SendVerificationEmailRequest.newBuilder()
                 .setTo("user@tap2eat.local")

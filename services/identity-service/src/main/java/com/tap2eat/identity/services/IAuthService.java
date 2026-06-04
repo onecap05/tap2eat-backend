@@ -7,6 +7,7 @@ public interface IAuthService {
     RegisterResponse registerAccount(RegisterRequest request);
     LoginResponse login(LoginRequest request);
     MeResponse getCurrentAccount(String email);
+    MeResponse updateCurrentAccountProfile(String email, UpdateProfileRequest request);
     void logout(LogoutRequest request);
     TokenRefreshResponse refreshToken(RefreshTokenRequest request);
     VerifyEmailResponse verifyEmail(VerifyEmailRequest request);

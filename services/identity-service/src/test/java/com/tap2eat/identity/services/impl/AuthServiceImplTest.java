@@ -2,6 +2,7 @@ package com.tap2eat.identity.services.impl;
 
 import com.tap2eat.identity.dtos.request.ForgotPasswordRequest;
 import com.tap2eat.identity.dtos.request.LoginRequest;
+import com.tap2eat.identity.dtos.request.LogoutRequest;
 import com.tap2eat.identity.dtos.request.RefreshTokenRequest;
 import com.tap2eat.identity.dtos.request.RegisterRequest;
 import com.tap2eat.identity.dtos.request.ResendVerificationCodeRequest;
@@ -19,7 +20,6 @@ import com.tap2eat.identity.exceptions.InvalidRoleException;
 import com.tap2eat.identity.exceptions.WeakPasswordException;
 import com.tap2eat.identity.models.Account;
 import com.tap2eat.identity.models.AccountProfile;
-import com.tap2eat.identity.models.EmailVerificationCode;
 import com.tap2eat.identity.models.PasswordResetCode;
 import com.tap2eat.identity.models.RefreshToken;
 import com.tap2eat.identity.models.Role;
@@ -49,6 +49,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -102,40 +103,26 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void registerAccount_shouldCreateInactiveEmailVerificationFlow() {
+    void registerAccount_shouldCreatePendingRegistrationAndSendVerificationCode() {
         RegisterRequest request = registerRequest("  New.User@Example.com  ", "Strong123!", "CUSTOMER");
-        EmailVerificationCode code = new EmailVerificationCode();
-        code.setCode("123456");
 
         when(accountRepository.existsByEmail("new.user@example.com")).thenReturn(false);
         when(passwordEncoder.encode("Strong123!")).thenReturn("encoded-password");
-        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
-            Account account = invocation.getArgument(0);
-            account.setId(ACCOUNT_ID);
-            return account;
-        });
-        when(emailVerificationCodeService.createCode(any(Account.class))).thenReturn(code);
 
         RegisterResponse response = authService.registerAccount(request);
 
-        assertEquals(ACCOUNT_ID, response.getId());
+        assertNull(response.getId());
         assertEquals("new.user@example.com", response.getEmail());
         assertEquals("CUSTOMER", response.getRole());
         assertEquals("auth.account.created.verify", response.getMessage());
 
-        ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
-        verify(accountRepository).save(accountCaptor.capture());
-        Account savedAccount = accountCaptor.getValue();
-        assertEquals("new.user@example.com", savedAccount.getEmail());
-        assertEquals("encoded-password", savedAccount.getPasswordHash());
-        assertEquals(Role.CUSTOMER, savedAccount.getRole());
-        assertFalse(savedAccount.getEmailVerified());
-        assertTrue(savedAccount.getIsActive());
-        assertNotNull(savedAccount.getProfile());
-        assertEquals("Angel", savedAccount.getProfile().getFirstName());
-        assertEquals("Ruiz", savedAccount.getProfile().getLastName());
-        assertEquals("2281234567", savedAccount.getProfile().getPhone());
-        verify(notificationGrpcClient).sendVerificationEmail("new.user@example.com", "123456");
+        ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+        verify(notificationGrpcClient).sendVerificationEmail(
+                org.mockito.ArgumentMatchers.eq("new.user@example.com"),
+                codeCaptor.capture()
+        );
+        assertTrue(codeCaptor.getValue().matches("\\d{6}"));
+        verify(accountRepository, never()).save(any(Account.class));
     }
 
     @Test
@@ -146,26 +133,101 @@ class AuthServiceImplTest {
         assertThrows(EmailAlreadyRegisteredException.class, () -> authService.registerAccount(request));
 
         verify(accountRepository, never()).save(any(Account.class));
-        verifyNoInteractions(notificationGrpcClient, emailVerificationCodeService);
+        verifyNoInteractions(notificationGrpcClient);
     }
 
     @Test
-    void registerAccount_whenPasswordIsWeak_shouldThrowWeakPasswordException() {
-        RegisterRequest request = registerRequest("new@example.com", "weakpass", "CUSTOMER");
-        when(accountRepository.existsByEmail("new@example.com")).thenReturn(false);
+    void registerAccount_whenRoleIsBlankOrInvalidOrAdmin_shouldThrowInvalidRoleException() {
+        when(accountRepository.existsByEmail(anyString())).thenReturn(false);
 
-        assertThrows(WeakPasswordException.class, () -> authService.registerAccount(request));
+        assertThrows(InvalidRoleException.class,
+                () -> authService.registerAccount(registerRequest("blank@example.com", "Strong123!", " ")));
+        assertThrows(InvalidRoleException.class,
+                () -> authService.registerAccount(registerRequest("invalid@example.com", "Strong123!", "OWNERISH")));
+        assertThrows(InvalidRoleException.class,
+                () -> authService.registerAccount(registerRequest("admin@example.com", "Strong123!", "ADMIN")));
+
+        verify(accountRepository, never()).save(any(Account.class));
+        verifyNoInteractions(notificationGrpcClient);
+    }
+
+    @Test
+    void registerAccount_whenPasswordIsWeak_shouldThrowWeakPasswordExceptionForEachRule() {
+        when(accountRepository.existsByEmail(anyString())).thenReturn(false);
+
+        assertThrows(WeakPasswordException.class,
+                () -> authService.registerAccount(registerRequest("short@example.com", "S1!", "CUSTOMER")));
+        assertThrows(WeakPasswordException.class,
+                () -> authService.registerAccount(registerRequest("upper@example.com", "strong123!", "CUSTOMER")));
+        assertThrows(WeakPasswordException.class,
+                () -> authService.registerAccount(registerRequest("lower@example.com", "STRONG123!", "CUSTOMER")));
+        assertThrows(WeakPasswordException.class,
+                () -> authService.registerAccount(registerRequest("digit@example.com", "StrongPass!", "CUSTOMER")));
+        assertThrows(WeakPasswordException.class,
+                () -> authService.registerAccount(registerRequest("special@example.com", "Strong123", "CUSTOMER")));
+
+        verify(accountRepository, never()).save(any(Account.class));
+        verifyNoInteractions(notificationGrpcClient);
+    }
+
+    @Test
+    void verifyEmail_whenPendingCodeIsValid_shouldPersistVerifiedAccountAndProfile() {
+        String verificationCode = registerPendingAccount("new.user@example.com", "Strong123!", "CUSTOMER");
+        VerifyEmailRequest request = new VerifyEmailRequest();
+        request.setCode(verificationCode);
+
+        when(accountRepository.existsByEmail("new.user@example.com")).thenReturn(false);
+        when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
+            Account account = invocation.getArgument(0);
+            account.setId(ACCOUNT_ID);
+            return account;
+        });
+
+        assertEquals("auth.email.verified.success", authService.verifyEmail(request).getMessage());
+
+        ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
+        verify(accountRepository).save(accountCaptor.capture());
+        Account savedAccount = accountCaptor.getValue();
+        assertEquals("new.user@example.com", savedAccount.getEmail());
+        assertEquals("encoded-password", savedAccount.getPasswordHash());
+        assertEquals(Role.CUSTOMER, savedAccount.getRole());
+        assertTrue(savedAccount.getEmailVerified());
+        assertTrue(savedAccount.getIsActive());
+        assertNotNull(savedAccount.getProfile());
+        assertEquals("Angel", savedAccount.getProfile().getFirstName());
+        assertEquals("Ruiz", savedAccount.getProfile().getLastName());
+        assertEquals("2281234567", savedAccount.getProfile().getPhone());
+        assertEquals(savedAccount, savedAccount.getProfile().getAccount());
+    }
+
+    @Test
+    void verifyEmail_whenCodeDoesNotExist_shouldThrowInvalidCredentialsException() {
+        VerifyEmailRequest request = new VerifyEmailRequest();
+        request.setCode("000000");
+
+        assertThrows(InvalidCredentialsException.class, () -> authService.verifyEmail(request));
 
         verify(accountRepository, never()).save(any(Account.class));
     }
 
     @Test
-    void registerAccount_whenAdminRoleIsRequested_shouldThrowInvalidRoleException() {
-        RegisterRequest request = registerRequest("new@example.com", "Strong123!", "ADMIN");
-        when(accountRepository.existsByEmail("new@example.com")).thenReturn(false);
+    void verifyEmail_whenEmailWasRegisteredBeforeVerification_shouldThrowConflictException() {
+        when(accountRepository.existsByEmail("new.user@example.com")).thenReturn(false, true);
+        when(passwordEncoder.encode("Strong123!")).thenReturn("encoded-password");
 
-        assertThrows(InvalidRoleException.class, () -> authService.registerAccount(request));
+        RegisterRequest registerRequest = registerRequest("new.user@example.com", "Strong123!", "CUSTOMER");
+        authService.registerAccount(registerRequest);
 
+        ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+        verify(notificationGrpcClient).sendVerificationEmail(
+                org.mockito.ArgumentMatchers.eq("new.user@example.com"),
+                codeCaptor.capture()
+        );
+
+        VerifyEmailRequest request = new VerifyEmailRequest();
+        request.setCode(codeCaptor.getValue());
+
+        assertThrows(EmailAlreadyRegisteredException.class, () -> authService.verifyEmail(request));
         verify(accountRepository, never()).save(any(Account.class));
     }
 
@@ -252,19 +314,13 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void verifyEmail_whenCodeIsValid_shouldVerifyAccountAndMarkCodeAsUsed() {
-        Account account = account("user@example.com", true, false);
-        EmailVerificationCode verificationCode = new EmailVerificationCode();
-        verificationCode.setAccount(account);
-        VerifyEmailRequest request = new VerifyEmailRequest();
-        request.setCode("123456");
+    void logout_shouldRevokeRefreshToken() {
+        LogoutRequest request = new LogoutRequest();
+        request.setRefreshToken("refresh-token");
 
-        when(emailVerificationCodeService.validateCode("123456")).thenReturn(verificationCode);
+        authService.logout(request);
 
-        assertEquals("auth.email.verified.success", authService.verifyEmail(request).getMessage());
-        assertTrue(account.getEmailVerified());
-        verify(accountRepository).save(account);
-        verify(emailVerificationCodeService).markAsUsed(verificationCode);
+        verify(refreshTokenService).revokeToken("refresh-token");
     }
 
     @Test
@@ -311,6 +367,16 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void resetPassword_whenAccountDoesNotExist_shouldThrowInvalidCredentialsException() {
+        ResetPasswordRequest request = resetPasswordRequest("missing@example.com", "654321", "NewStrong123!");
+        when(accountRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(InvalidCredentialsException.class, () -> authService.resetPassword(request));
+
+        verifyNoInteractions(passwordResetCodeService, passwordEncoder, refreshTokenService);
+    }
+
+    @Test
     void resetPassword_whenCodeBelongsToAnotherAccount_shouldThrowInvalidCredentialsException() {
         Account account = account("user@example.com", true, true);
         Account otherAccount = account("other@example.com", true, true);
@@ -328,6 +394,22 @@ class AuthServiceImplTest {
         verify(accountRepository, never()).save(any(Account.class));
         verify(passwordResetCodeService, never()).markAsUsed(any(PasswordResetCode.class));
         verify(refreshTokenService, never()).deleteByAccountId(any(UUID.class));
+    }
+
+    @Test
+    void resetPassword_whenNewPasswordIsWeak_shouldThrowWeakPasswordException() {
+        Account account = account("user@example.com", true, true);
+        PasswordResetCode resetCode = new PasswordResetCode();
+        resetCode.setAccount(account);
+        ResetPasswordRequest request = resetPasswordRequest("user@example.com", "654321", "weakpass");
+
+        when(accountRepository.findByEmail("user@example.com")).thenReturn(Optional.of(account));
+        when(passwordResetCodeService.validateCode("654321")).thenReturn(resetCode);
+
+        assertThrows(WeakPasswordException.class, () -> authService.resetPassword(request));
+
+        verifyNoInteractions(passwordEncoder);
+        verify(accountRepository, never()).save(any(Account.class));
     }
 
     @Test
@@ -366,6 +448,13 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void getCurrentAccount_whenAccountDoesNotExist_shouldThrowInvalidCredentialsException() {
+        when(accountRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(InvalidCredentialsException.class, () -> authService.getCurrentAccount("missing@example.com"));
+    }
+
+    @Test
     void resendVerificationCode_whenAccountIsAlreadyVerified_shouldReturnAlreadyVerifiedMessage() {
         Account account = account("user@example.com", true, true);
         ResendVerificationCodeRequest request = new ResendVerificationCodeRequest();
@@ -378,18 +467,41 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void resendVerificationCode_whenAccountIsUnverified_shouldCreateAndSendNewCode() {
-        Account account = account("user@example.com", true, false);
-        EmailVerificationCode code = new EmailVerificationCode();
-        code.setCode("123456");
+    void resendVerificationCode_whenNoPendingRegistrationExists_shouldReturnGenericMessageWithoutSendingEmail() {
         ResendVerificationCodeRequest request = new ResendVerificationCodeRequest();
-        request.setEmail("user@example.com");
-
-        when(accountRepository.findByEmail("user@example.com")).thenReturn(Optional.of(account));
-        when(emailVerificationCodeService.createCode(account)).thenReturn(code);
+        request.setEmail("missing@example.com");
+        when(accountRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
         assertEquals("auth.verification.code.resent", authService.resendVerificationCode(request).getMessage());
-        verify(notificationGrpcClient).sendVerificationEmail("user@example.com", "123456");
+        verifyNoInteractions(notificationGrpcClient);
+    }
+
+    @Test
+    void resendVerificationCode_whenPendingRegistrationExists_shouldGenerateAndSendNewCode() {
+        registerPendingAccount("new.user@example.com", "Strong123!", "CUSTOMER");
+        ResendVerificationCodeRequest request = new ResendVerificationCodeRequest();
+        request.setEmail(" new.user@example.com ");
+
+        when(accountRepository.findByEmail("new.user@example.com")).thenReturn(Optional.empty());
+
+        assertEquals("auth.verification.code.resent", authService.resendVerificationCode(request).getMessage());
+
+        verify(notificationGrpcClient, org.mockito.Mockito.times(2))
+                .sendVerificationEmail(org.mockito.ArgumentMatchers.eq("new.user@example.com"), anyString());
+    }
+
+    private String registerPendingAccount(String email, String password, String role) {
+        when(accountRepository.existsByEmail(email)).thenReturn(false);
+        when(passwordEncoder.encode(password)).thenReturn("encoded-password");
+
+        authService.registerAccount(registerRequest(email, password, role));
+
+        ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+        verify(notificationGrpcClient).sendVerificationEmail(
+                org.mockito.ArgumentMatchers.eq(email),
+                codeCaptor.capture()
+        );
+        return codeCaptor.getValue();
     }
 
     private RegisterRequest registerRequest(String email, String password, String role) {

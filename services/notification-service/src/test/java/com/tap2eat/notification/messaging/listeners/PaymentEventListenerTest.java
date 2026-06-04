@@ -16,7 +16,10 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -146,6 +149,46 @@ class PaymentEventListenerTest {
         assertDoesNotThrow(() -> listener.handlePaymentEvent(rawMessage));
 
         verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void whenPaymentEventTypeIsMissing_shouldIgnoreMessage() {
+        String rawMessage = """
+                {
+                  "PaymentId": "payment-5"
+                }
+                """;
+
+        assertDoesNotThrow(() -> listener.handlePaymentEvent(rawMessage));
+
+        verifyNoInteractions(notificationService);
+    }
+
+    @Test
+    void whenNotificationServiceFails_shouldPropagateError() {
+        String rawMessage = """
+                {
+                  "EventId": "event-error",
+                  "EventType": "payment.approved",
+                  "PaymentId": "payment-error",
+                  "OrderId": "order-error",
+                  "CustomerAccountId": "customer-error",
+                  "RestaurantId": "restaurant-error",
+                  "BranchId": "branch-error",
+                  "Amount": 140.75,
+                  "Currency": "MXN",
+                  "Status": "Approved",
+                  "Provider": "SIMULATED",
+                  "ProviderReference": "provider-ref-error",
+                  "OccurredAt": "2026-05-22T10:25:31Z"
+                }
+                """;
+        RuntimeException failure = new RuntimeException("notification unavailable");
+        doThrow(failure).when(notificationService).handlePaymentApproved(any(PaymentApprovedEvent.class));
+
+        RuntimeException thrown = assertThrows(RuntimeException.class, () -> listener.handlePaymentEvent(rawMessage));
+
+        assertEquals(failure, thrown);
     }
 
     @Test

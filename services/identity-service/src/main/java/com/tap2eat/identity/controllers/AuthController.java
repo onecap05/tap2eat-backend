@@ -31,6 +31,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import com.tap2eat.identity.exceptions.ErrorResponse;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.tap2eat.identity.dtos.request.UpdateProfileRequest;
 
 @Tag(name = "Authentication", description = "Authentication and account management endpoints")
 @RestController
@@ -106,6 +107,33 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<MeResponse> me(Authentication authentication) {
         MeResponse response = authService.getCurrentAccount(authentication.getName());
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+        @Operation(
+            summary = "Update current account profile",
+            description = "Updates the authenticated account profile information."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Profile updated successfully"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Validation error",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @SecurityRequirement(name = "bearerAuth")
+    @PatchMapping("/me")
+    public ResponseEntity<MeResponse> updateMe(
+            Authentication authentication,
+            @Valid @RequestBody UpdateProfileRequest request
+    ) {
+        MeResponse response = authService.updateCurrentAccountProfile(authentication.getName(), request);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

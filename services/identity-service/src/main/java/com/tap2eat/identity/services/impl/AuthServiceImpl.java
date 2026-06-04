@@ -181,6 +181,43 @@ public RegisterResponse registerAccount(RegisterRequest request) {
         );
     }
 
+        @Override
+    @Transactional
+    public MeResponse updateCurrentAccountProfile(String email, UpdateProfileRequest request) {
+        String normalizedEmail = normalizeEmail(email);
+
+        Account account = accountRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new InvalidCredentialsException(getMessage("auth.authenticated.account.not.found")));
+
+        AccountProfile profile = account.getProfile();
+
+        if (profile == null) {
+            profile = new AccountProfile();
+            profile.setAccount(account);
+            account.setProfile(profile);
+        }
+
+        profile.setFirstName(request.getFirstName().trim());
+        profile.setLastName(request.getLastName().trim());
+        profile.setPhone(request.getPhone() != null && !request.getPhone().trim().isEmpty()
+                ? request.getPhone().trim()
+                : null);
+
+        Account updatedAccount = accountRepository.save(account);
+        AccountProfile updatedProfile = updatedAccount.getProfile();
+
+        return new MeResponse(
+                updatedAccount.getId(),
+                updatedAccount.getEmail(),
+                updatedAccount.getRole().name(),
+                updatedAccount.getIsActive(),
+                updatedAccount.getEmailVerified(),
+                updatedProfile != null ? updatedProfile.getFirstName() : null,
+                updatedProfile != null ? updatedProfile.getLastName() : null,
+                updatedProfile != null ? updatedProfile.getPhone() : null
+        );
+    }
+
     @Override
     @Transactional
     public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest request) {

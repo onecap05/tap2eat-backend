@@ -2,9 +2,12 @@ package com.tap2eat.identity.dtos;
 
 import com.tap2eat.identity.dtos.request.ForgotPasswordRequest;
 import com.tap2eat.identity.dtos.request.LoginRequest;
+import com.tap2eat.identity.dtos.request.LogoutRequest;
 import com.tap2eat.identity.dtos.request.RefreshTokenRequest;
 import com.tap2eat.identity.dtos.request.RegisterRequest;
+import com.tap2eat.identity.dtos.request.ResendVerificationCodeRequest;
 import com.tap2eat.identity.dtos.request.ResetPasswordRequest;
+import com.tap2eat.identity.dtos.request.VerifyEmailRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -85,11 +88,41 @@ class RequestValidationTest {
     }
 
     @Test
+    void logoutRequest_whenTokenIsBlank_shouldFailValidation() {
+        LogoutRequest request = new LogoutRequest();
+        request.setRefreshToken(" ");
+
+        Set<ConstraintViolation<LogoutRequest>> violations = validator.validate(request);
+
+        assertTrue(hasViolation(violations, "refreshToken", "Refresh token is required"));
+    }
+
+    @Test
+    void verifyEmailRequest_whenCodeIsBlank_shouldFailValidation() {
+        VerifyEmailRequest request = new VerifyEmailRequest();
+        request.setCode(" ");
+
+        Set<ConstraintViolation<VerifyEmailRequest>> violations = validator.validate(request);
+
+        assertTrue(hasViolation(violations, "code", "Verification code is required"));
+    }
+
+    @Test
     void forgotPasswordRequest_whenEmailIsInvalid_shouldFailValidation() {
         ForgotPasswordRequest request = new ForgotPasswordRequest();
         request.setEmail("invalid-email");
 
         Set<ConstraintViolation<ForgotPasswordRequest>> violations = validator.validate(request);
+
+        assertTrue(hasViolation(violations, "email", "Email format is incorrect"));
+    }
+
+    @Test
+    void resendVerificationCodeRequest_whenEmailIsInvalid_shouldFailValidation() {
+        ResendVerificationCodeRequest request = new ResendVerificationCodeRequest();
+        request.setEmail("invalid-email");
+
+        Set<ConstraintViolation<ResendVerificationCodeRequest>> violations = validator.validate(request);
 
         assertTrue(hasViolation(violations, "email", "Email format is incorrect"));
     }

@@ -26,6 +26,7 @@ class RestaurantControllerTest {
         when(service.activateRestaurant(CatalogTestDataFactory.RESTAURANT_ID, CatalogTestDataFactory.OWNER_ID)).thenReturn(restaurant);
 
         assertThat(controller.createRestaurant(CatalogTestDataFactory.createRestaurantRequest()).id()).isEqualTo(CatalogTestDataFactory.RESTAURANT_ID);
+        assertThat(controller.createRestaurant(CatalogTestDataFactory.createRestaurantRequest()).rfc()).isEqualTo(CatalogTestDataFactory.RESTAURANT_RFC);
         assertThat(controller.updateRestaurant(CatalogTestDataFactory.RESTAURANT_ID, CatalogTestDataFactory.OWNER_ID, CatalogTestDataFactory.updateRestaurantRequest()).id()).isEqualTo(CatalogTestDataFactory.RESTAURANT_ID);
         assertThat(controller.getRestaurantById(CatalogTestDataFactory.RESTAURANT_ID).id()).isEqualTo(CatalogTestDataFactory.RESTAURANT_ID);
         assertThat(controller.getRestaurantByOwnerAccountId(CatalogTestDataFactory.OWNER_ID).id()).isEqualTo(CatalogTestDataFactory.RESTAURANT_ID);

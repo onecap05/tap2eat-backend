@@ -6,6 +6,7 @@ public record CustomerRestaurantResponse(
         String id,
         String name,
         String description,
+        String rfc,
         ImageMetadataResponse logo,
         Boolean active,
         Boolean open

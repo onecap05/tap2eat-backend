@@ -5,6 +5,7 @@ import com.tap2eat.catalog.dtos.request.product.ImageMetadataRequest;
 public record UpdateRestaurantRequest(
         String name,
         String description,
+        String rfc,
         ImageMetadataRequest logo
 ) {
 }

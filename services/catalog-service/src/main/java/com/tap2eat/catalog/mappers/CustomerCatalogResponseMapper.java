@@ -37,6 +37,7 @@ public class CustomerCatalogResponseMapper {
                 document.getId(),
                 document.getName(),
                 document.getDescription(),
+                document.getRfc(),
                 toImageMetadataResponse(document.getLogo()),
                 document.getIsActive(),
                 open

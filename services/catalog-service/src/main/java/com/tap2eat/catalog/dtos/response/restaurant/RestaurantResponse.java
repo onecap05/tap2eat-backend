@@ -9,6 +9,7 @@ public record RestaurantResponse(
         String ownerAccountId,
         String name,
         String description,
+        String rfc,
         ImageMetadataResponse logo,
         Boolean active,
         LocalDateTime createdAt,

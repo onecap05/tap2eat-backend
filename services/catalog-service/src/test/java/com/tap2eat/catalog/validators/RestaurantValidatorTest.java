@@ -31,10 +31,21 @@ class RestaurantValidatorTest {
         ImageMetadata logo = CatalogTestDataFactory.imageMetadata();
         logo.setUrl(" ");
         invalidLogo.setLogo(logo);
+        RestaurantDocument invalidRfc = CatalogTestDataFactory.restaurant();
+        invalidRfc.setRfc("INVALID-RFC");
 
         assertInvalid(missingOwner);
         assertInvalid(missingName);
         assertInvalid(invalidLogo);
+        assertInvalid(invalidRfc);
+    }
+
+    @Test
+    void validate_shouldAllowNullRfcForExistingRestaurants() {
+        RestaurantDocument restaurant = CatalogTestDataFactory.restaurant();
+        restaurant.setRfc(null);
+
+        assertThatCode(() -> RestaurantValidator.validate(restaurant)).doesNotThrowAnyException();
     }
 
     private void assertInvalid(RestaurantDocument restaurant) {

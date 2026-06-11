@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using OrderService.Domain.Enums;
 
 namespace OrderService.Dtos.Requests;
 
@@ -17,4 +18,12 @@ public sealed class CreateOrderRequest
     public List<CreateOrderItemRequest> Items { get; set; } = [];
 
     public string? Notes { get; set; }
+
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Online;
+
+    public CashPaymentType? CashPaymentType { get; set; }
+
+    public decimal? CashAmountProvided { get; set; }
+
+    public decimal? EstimatedChange { get; set; }
 }

@@ -79,6 +79,125 @@ public sealed class OrderServiceImplTests
     }
 
     [Fact]
+    public async Task CreateAsync_WhenCashKnownAmount_ShouldCalculateAndPersistEstimatedChange()
+    {
+        var repository = new InMemoryOrderRepository();
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = new OrderServiceImpl(
+            repository,
+            new FakeCatalogClient(OrderTestData.ValidatedOrderResponse(unitPrice: 50)),
+            eventPublisher);
+        var request = OrderTestData.CreateOrderRequest();
+        request.PaymentMethod = PaymentMethod.Cash;
+        request.CashPaymentType = CashPaymentType.KnownAmount;
+        request.CashAmountProvided = 150;
+        request.EstimatedChange = 999;
+
+        var response = await service.CreateOrderAsync(request);
+
+        response.PaymentMethod.Should().Be(PaymentMethod.Cash);
+        response.CashPaymentType.Should().Be(CashPaymentType.KnownAmount);
+        response.CashAmountProvided.Should().Be(150);
+        response.EstimatedChange.Should().Be(50);
+        repository.Orders.Should().ContainSingle(order =>
+            order.CashAmountProvided == 150
+            && order.EstimatedChange == 50);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenCashUnknownAmount_ShouldCreateOrderWithoutCashAmounts()
+    {
+        var repository = new InMemoryOrderRepository();
+        var service = CreateService(repository);
+        var request = OrderTestData.CreateOrderRequest();
+        request.PaymentMethod = PaymentMethod.Cash;
+        request.CashPaymentType = CashPaymentType.UnknownAmount;
+
+        var response = await service.CreateOrderAsync(request);
+
+        response.PaymentMethod.Should().Be(PaymentMethod.Cash);
+        response.CashPaymentType.Should().Be(CashPaymentType.UnknownAmount);
+        response.CashAmountProvided.Should().BeNull();
+        response.EstimatedChange.Should().BeNull();
+        repository.Orders.Should().ContainSingle(order =>
+            order.CashPaymentType == CashPaymentType.UnknownAmount
+            && order.CashAmountProvided == null
+            && order.EstimatedChange == null);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenCashPaymentTypeIsMissing_ShouldThrowValidationException()
+    {
+        var repository = new InMemoryOrderRepository();
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = CreateService(repository, eventPublisher);
+        var request = OrderTestData.CreateOrderRequest();
+        request.PaymentMethod = PaymentMethod.Cash;
+
+        var act = async () => await service.CreateOrderAsync(request);
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+        repository.Orders.Should().BeEmpty();
+        eventPublisher.OrderCreatedCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenKnownCashAmountIsMissing_ShouldThrowValidationException()
+    {
+        var repository = new InMemoryOrderRepository();
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = CreateService(repository, eventPublisher);
+        var request = OrderTestData.CreateOrderRequest();
+        request.PaymentMethod = PaymentMethod.Cash;
+        request.CashPaymentType = CashPaymentType.KnownAmount;
+
+        var act = async () => await service.CreateOrderAsync(request);
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+        repository.Orders.Should().BeEmpty();
+        eventPublisher.OrderCreatedCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenKnownCashAmountIsLessThanTotal_ShouldThrowValidationException()
+    {
+        var repository = new InMemoryOrderRepository();
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = new OrderServiceImpl(
+            repository,
+            new FakeCatalogClient(OrderTestData.ValidatedOrderResponse(unitPrice: 50)),
+            eventPublisher);
+        var request = OrderTestData.CreateOrderRequest();
+        request.PaymentMethod = PaymentMethod.Cash;
+        request.CashPaymentType = CashPaymentType.KnownAmount;
+        request.CashAmountProvided = 99;
+
+        var act = async () => await service.CreateOrderAsync(request);
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+        repository.Orders.Should().BeEmpty();
+        eventPublisher.OrderCreatedCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenUnknownCashAmountHasAmounts_ShouldThrowValidationException()
+    {
+        var repository = new InMemoryOrderRepository();
+        var eventPublisher = new FakeOrderEventPublisher();
+        var service = CreateService(repository, eventPublisher);
+        var request = OrderTestData.CreateOrderRequest();
+        request.PaymentMethod = PaymentMethod.Cash;
+        request.CashPaymentType = CashPaymentType.UnknownAmount;
+        request.CashAmountProvided = 150;
+
+        var act = async () => await service.CreateOrderAsync(request);
+
+        await act.Should().ThrowAsync<OrderValidationException>();
+        repository.Orders.Should().BeEmpty();
+        eventPublisher.OrderCreatedCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenCatalogRejectsOrder_ShouldNotSaveOrder()
     {
         var repository = new InMemoryOrderRepository();

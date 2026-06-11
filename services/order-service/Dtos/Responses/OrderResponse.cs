@@ -22,6 +22,14 @@ public sealed class OrderResponse
 
     public OrderStatus Status { get; set; }
 
+    public PaymentMethod PaymentMethod { get; set; }
+
+    public CashPaymentType? CashPaymentType { get; set; }
+
+    public decimal? CashAmountProvided { get; set; }
+
+    public decimal? EstimatedChange { get; set; }
+
     public int? EstimatedPreparationMinutes { get; set; }
 
     public DateTime? EstimatedReadyAt { get; set; }

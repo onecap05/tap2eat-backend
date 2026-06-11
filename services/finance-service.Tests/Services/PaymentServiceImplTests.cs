@@ -248,6 +248,73 @@ public sealed class PaymentServiceImplTests
     }
 
     [Fact]
+    public async Task ConfirmCashPaymentAsync_WhenPending_ShouldApproveWithCashDetailsAndPublish()
+    {
+        var payment = PaymentTestData.Payment();
+        _repository.Seed(payment);
+
+        var response = await _service.ConfirmCashPaymentAsync(
+            payment.Id,
+            PaymentTestData.ConfirmCashRequest(200m));
+
+        response.Status.Should().Be(PaymentStatus.Approved);
+        response.Provider.Should().Be("CASH");
+        response.ProviderReference.Should().StartWith("CASH-");
+        response.AmountReceived.Should().Be(200m);
+        response.ChangeAmount.Should().Be(49.25m);
+        response.ApprovedAt.Should().NotBeNull();
+        _publisher.PaymentApprovedCalls.Should().Be(1);
+        _publisher.LastApprovedPayment!.Id.Should().Be(payment.Id);
+        _publisher.LastApprovedPayment.AmountReceived.Should().Be(200m);
+        _publisher.LastApprovedPayment.ChangeAmount.Should().Be(49.25m);
+    }
+
+    [Fact]
+    public async Task ConfirmCashPaymentAsync_WhenAmountReceivedIsLessThanAmount_ShouldThrowAndNotPublish()
+    {
+        var payment = PaymentTestData.Payment();
+        _repository.Seed(payment);
+
+        var action = () => _service.ConfirmCashPaymentAsync(
+            payment.Id,
+            PaymentTestData.ConfirmCashRequest(100m));
+
+        await action.Should().ThrowAsync<FinanceValidationException>();
+        _publisher.PaymentApprovedCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ConfirmCashPaymentAsync_WhenAmountReceivedIsMissing_ShouldThrowAndNotPublish()
+    {
+        var payment = PaymentTestData.Payment();
+        _repository.Seed(payment);
+
+        var action = () => _service.ConfirmCashPaymentAsync(
+            payment.Id,
+            new ConfirmCashPaymentRequest());
+
+        await action.Should().ThrowAsync<FinanceValidationException>();
+        _publisher.PaymentApprovedCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(PaymentStatus.Approved)]
+    [InlineData(PaymentStatus.Cancelled)]
+    [InlineData(PaymentStatus.Rejected)]
+    public async Task ConfirmCashPaymentAsync_WhenPaymentNotPending_ShouldThrowAndNotPublish(PaymentStatus status)
+    {
+        var payment = PaymentTestData.Payment(status: status);
+        _repository.Seed(payment);
+
+        var action = () => _service.ConfirmCashPaymentAsync(
+            payment.Id,
+            PaymentTestData.ConfirmCashRequest(200m));
+
+        await action.Should().ThrowAsync<InvalidPaymentStatusTransitionException>();
+        _publisher.PaymentApprovedCalls.Should().Be(0);
+    }
+
+    [Fact]
     public async Task RejectAsync_WhenPending_ShouldRejectAndPublishPaymentRejected()
     {
         var payment = PaymentTestData.Payment();

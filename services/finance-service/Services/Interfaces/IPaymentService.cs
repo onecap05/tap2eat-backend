@@ -31,6 +31,11 @@ public interface IPaymentService
         ApprovePaymentRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<PaymentResponse> ConfirmCashPaymentAsync(
+        Guid id,
+        ConfirmCashPaymentRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<PaymentResponse> RejectAsync(
         Guid id,
         RejectPaymentRequest request,

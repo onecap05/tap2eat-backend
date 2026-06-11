@@ -24,6 +24,10 @@ public sealed class Payment
 
     public string? ProviderReference { get; set; }
 
+    public decimal? AmountReceived { get; set; }
+
+    public decimal? ChangeAmount { get; set; }
+
     public string? RejectionReason { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

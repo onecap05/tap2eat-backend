@@ -95,6 +95,31 @@ public sealed class PaymentsControllerIntegrationTests : IClassFixture<FinanceAp
     }
 
     [Fact]
+    public async Task ConfirmCashPayment_persistsCashDetailsInPostgreSql()
+    {
+        var payment = await CreatePaymentAsync("order-cash-confirm");
+
+        var response = await _fixture.Client.PatchAsJsonAsync(
+            $"/api/payments/{payment.Id}/cash/confirm",
+            new ConfirmCashPaymentRequest { AmountReceived = 200m },
+            JsonOptions);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<PaymentResponse>(JsonOptions);
+        body!.Status.Should().Be(PaymentStatus.Approved);
+        body.Provider.Should().Be("CASH");
+        body.AmountReceived.Should().Be(200m);
+        body.ChangeAmount.Should().Be(49.25m);
+
+        await using var scope = _fixture.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
+        var persistedPayment = await dbContext.Payments.FindAsync(payment.Id);
+        persistedPayment!.Provider.Should().Be("CASH");
+        persistedPayment.AmountReceived.Should().Be(200m);
+        persistedPayment.ChangeAmount.Should().Be(49.25m);
+    }
+
+    [Fact]
     public async Task Reject_persistsRejectedInPostgreSql()
     {
         var payment = await CreatePaymentAsync("order-reject");

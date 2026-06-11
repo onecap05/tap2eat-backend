@@ -187,6 +187,45 @@ public sealed class PaymentsControllerTests
     }
 
     [Fact]
+    public async Task ConfirmCashPayment_returnsApprovedPayment()
+    {
+        var paymentId = Guid.NewGuid();
+        var expectedPayment = Response(paymentId, PaymentStatus.Approved);
+        expectedPayment.Provider = "CASH";
+        expectedPayment.AmountReceived = 200m;
+        expectedPayment.ChangeAmount = 49.25m;
+        var request = new ConfirmCashPaymentRequest { AmountReceived = 200m };
+        _paymentService
+            .Setup(service => service.ConfirmCashPaymentAsync(paymentId, request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedPayment);
+
+        var controller = CreateController();
+
+        var result = await controller.ConfirmCashPayment(paymentId, request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().Be(expectedPayment);
+        _tokenValidator.Verify(validator => validator.IsValid(It.IsAny<string?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConfirmCashPayment_WithInvalidRequest_PropagatesFinanceValidationException()
+    {
+        var paymentId = Guid.NewGuid();
+        var request = new ConfirmCashPaymentRequest { AmountReceived = 100m };
+        _paymentService
+            .Setup(service => service.ConfirmCashPaymentAsync(paymentId, request, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new FinanceValidationException("Amount received must be greater than or equal to the payment amount."));
+
+        var controller = CreateController();
+
+        var action = () => controller.ConfirmCashPayment(paymentId, request, CancellationToken.None);
+
+        await action.Should().ThrowAsync<FinanceValidationException>();
+        _tokenValidator.Verify(validator => validator.IsValid(It.IsAny<string?>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Reject_withoutHeader_returnsForbidden()
     {
         _tokenValidator

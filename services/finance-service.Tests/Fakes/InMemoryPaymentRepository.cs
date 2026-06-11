@@ -100,6 +100,8 @@ public sealed class InMemoryPaymentRepository : IPaymentRepository
             Status = payment.Status,
             Provider = payment.Provider,
             ProviderReference = payment.ProviderReference,
+            AmountReceived = payment.AmountReceived,
+            ChangeAmount = payment.ChangeAmount,
             RejectionReason = payment.RejectionReason,
             CreatedAt = payment.CreatedAt,
             UpdatedAt = payment.UpdatedAt,

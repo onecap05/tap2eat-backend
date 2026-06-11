@@ -14,6 +14,7 @@ namespace FinanceService.Services.Implementations;
 public sealed class PaymentServiceImpl : IPaymentService
 {
     private const string SimulatedProvider = "SIMULATED";
+    private const string CashProvider = "CASH";
     private const string CancelledOrderStatus = "Cancelled";
     private const string OrderCancelledReason = "ORDER_CANCELLED";
 
@@ -188,6 +189,40 @@ public sealed class PaymentServiceImpl : IPaymentService
         payment.ProviderReference = string.IsNullOrWhiteSpace(request.ProviderReference)
             ? $"SIM-{Guid.NewGuid():N}"
             : request.ProviderReference;
+        payment.ApprovedAt = now;
+        payment.UpdatedAt = now;
+
+        var updatedPayment = await _paymentRepository.UpdateAsync(payment, cancellationToken);
+        await _paymentEventPublisher.PublishPaymentApprovedAsync(updatedPayment, cancellationToken);
+
+        return PaymentMapper.ToResponse(updatedPayment);
+    }
+
+    public async Task<PaymentResponse> ConfirmCashPaymentAsync(
+        Guid id,
+        ConfirmCashPaymentRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!request.AmountReceived.HasValue)
+        {
+            throw new FinanceValidationException("Amount received is required.");
+        }
+
+        var payment = await GetPaymentOrThrowAsync(id, cancellationToken);
+
+        EnsurePending(payment, PaymentStatus.Approved);
+
+        if (request.AmountReceived.Value < payment.Amount)
+        {
+            throw new FinanceValidationException("Amount received must be greater than or equal to the payment amount.");
+        }
+
+        var now = DateTime.UtcNow;
+        payment.Status = PaymentStatus.Approved;
+        payment.Provider = CashProvider;
+        payment.ProviderReference = $"CASH-{payment.Id:N}";
+        payment.AmountReceived = request.AmountReceived.Value;
+        payment.ChangeAmount = request.AmountReceived.Value - payment.Amount;
         payment.ApprovedAt = now;
         payment.UpdatedAt = now;
 

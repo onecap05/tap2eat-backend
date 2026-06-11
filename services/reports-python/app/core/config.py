@@ -7,6 +7,7 @@ class Settings(BaseSettings):
 
     order_service_base_url: str = "http://localhost:8085"
     catalog_service_base_url: str = "http://localhost:8082"
+    finance_service_base_url: str = "http://localhost:8086"
 
     internal_service_token: str = "tap2eat-internal-dev-token"
     request_timeout_seconds: float = 10.0

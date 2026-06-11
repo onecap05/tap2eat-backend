@@ -144,6 +144,23 @@ public sealed class OrderMapperTests
     }
 
     [Fact]
+    public void ToResponse_ShouldMapPaymentDetails()
+    {
+        var document = OrderTestData.OrderDocument();
+        document.PaymentMethod = PaymentMethod.Cash;
+        document.CashPaymentType = CashPaymentType.KnownAmount;
+        document.CashAmountProvided = 100;
+        document.EstimatedChange = 50;
+
+        var response = OrderMapper.ToResponse(document);
+
+        response.PaymentMethod.Should().Be(PaymentMethod.Cash);
+        response.CashPaymentType.Should().Be(CashPaymentType.KnownAmount);
+        response.CashAmountProvided.Should().Be(100);
+        response.EstimatedChange.Should().Be(50);
+    }
+
+    [Fact]
     public void ToResponse_ShouldMapCompleteModifiers()
     {
         var document = OrderTestData.OrderDocument();

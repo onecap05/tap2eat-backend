@@ -1,4 +1,5 @@
 using OrderService.Domain.Enums;
+using OrderService.Domain.Documents;
 using OrderService.Dtos.Requests;
 using OrderService.Dtos.Responses;
 using OrderService.Exceptions;
@@ -36,6 +37,7 @@ public sealed class OrderServiceImpl : IOrderService
         var validatedOrder = await _catalogClient.ValidateOrderAsync(request, cancellationToken);
 
         var document = OrderMapper.ToDocument(request, validatedOrder);
+        ApplyPaymentDetails(request, document);
 
         var createdOrder = await _orderRepository.CreateAsync(document, cancellationToken);
 
@@ -208,6 +210,51 @@ public sealed class OrderServiceImpl : IOrderService
             OrderStatus.Cancelled => false,
             _ => false
         };
+    }
+
+    private static void ApplyPaymentDetails(CreateOrderRequest request, OrderDocument document)
+    {
+        if (request.PaymentMethod is not PaymentMethod.Cash)
+        {
+            document.PaymentMethod = request.PaymentMethod;
+            document.CashPaymentType = null;
+            document.CashAmountProvided = null;
+            document.EstimatedChange = null;
+            return;
+        }
+
+        if (!request.CashPaymentType.HasValue)
+        {
+            throw new OrderValidationException("Cash payment type is required for cash orders.");
+        }
+
+        document.PaymentMethod = PaymentMethod.Cash;
+        document.CashPaymentType = request.CashPaymentType.Value;
+
+        if (request.CashPaymentType is CashPaymentType.UnknownAmount)
+        {
+            if (request.CashAmountProvided.HasValue || request.EstimatedChange.HasValue)
+            {
+                throw new OrderValidationException("Cash amount and estimated change must be empty when the customer does not know the payment amount.");
+            }
+
+            document.CashAmountProvided = null;
+            document.EstimatedChange = null;
+            return;
+        }
+
+        if (!request.CashAmountProvided.HasValue)
+        {
+            throw new OrderValidationException("Cash amount is required when the customer will pay with a specific amount.");
+        }
+
+        if (request.CashAmountProvided.Value < document.Total)
+        {
+            throw new OrderValidationException("Cash amount must be greater than or equal to the order total.");
+        }
+
+        document.CashAmountProvided = request.CashAmountProvided.Value;
+        document.EstimatedChange = request.CashAmountProvided.Value - document.Total;
     }
 
     private static int? GetEstimatedPreparationMinutes(

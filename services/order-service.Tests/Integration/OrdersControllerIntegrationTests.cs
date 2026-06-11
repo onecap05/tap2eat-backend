@@ -106,6 +106,30 @@ public sealed class OrdersControllerIntegrationTests : IClassFixture<OrderApiTes
     }
 
     [Fact]
+    public async Task PostOrders_WhenCashKnownAmount_ShouldPersistPaymentDetails()
+    {
+        var request = OrderTestData.CreateOrderRequest();
+        request.PaymentMethod = PaymentMethod.Cash;
+        request.CashPaymentType = CashPaymentType.KnownAmount;
+        request.CashAmountProvided = 150;
+        request.EstimatedChange = 999;
+        _fixture.Catalog.RespondWith(OrderTestData.ValidatedOrderResponse(unitPrice: 50));
+
+        var response = await _fixture.Client.PostAsJsonAsync("/api/orders", request, JsonOptions);
+        var body = await response.Content.ReadFromJsonAsync<OrderResponse>(JsonOptions);
+        var persistedOrder = await _fixture.Orders
+            .Find(order => order.Id == body!.Id)
+            .FirstOrDefaultAsync();
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        body!.PaymentMethod.Should().Be(PaymentMethod.Cash);
+        body.CashPaymentType.Should().Be(CashPaymentType.KnownAmount);
+        body.CashAmountProvided.Should().Be(150);
+        body.EstimatedChange.Should().Be(50);
+        persistedOrder!.EstimatedChange.Should().Be(50);
+    }
+
+    [Fact]
     public async Task PostOrders_WhenCatalogRejectsProduct_ShouldReturnControlledError()
     {
         _fixture.Catalog.RespondWithStatus(StatusCodes.Status400BadRequest);

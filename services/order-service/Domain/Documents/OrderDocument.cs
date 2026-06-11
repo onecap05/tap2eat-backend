@@ -30,6 +30,18 @@ public sealed class OrderDocument
     [BsonRepresentation(BsonType.String)]
     public OrderStatus Status { get; set; } = OrderStatus.Created;
 
+    [BsonRepresentation(BsonType.String)]
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Online;
+
+    [BsonRepresentation(BsonType.String)]
+    public CashPaymentType? CashPaymentType { get; set; }
+
+    [BsonRepresentation(BsonType.Decimal128)]
+    public decimal? CashAmountProvided { get; set; }
+
+    [BsonRepresentation(BsonType.Decimal128)]
+    public decimal? EstimatedChange { get; set; }
+
     public int? EstimatedPreparationMinutes { get; set; }
 
     public DateTime? EstimatedReadyAt { get; set; }

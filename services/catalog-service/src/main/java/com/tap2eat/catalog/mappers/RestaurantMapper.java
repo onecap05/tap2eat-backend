@@ -7,6 +7,8 @@ import com.tap2eat.catalog.models.documents.RestaurantDocument;
 import com.tap2eat.catalog.models.embedded.ImageMetadata;
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
+
 @Component
 public class RestaurantMapper {
 
@@ -19,6 +21,7 @@ public class RestaurantMapper {
         document.setOwnerAccountId(request.ownerAccountId());
         document.setName(request.name());
         document.setDescription(request.description());
+        document.setRfc(normalizeRfc(request.rfc()));
         document.setLogo(mapImage(request.logo()));
         document.setIsActive(Boolean.TRUE);
 
@@ -32,7 +35,17 @@ public class RestaurantMapper {
 
         document.setName(request.name());
         document.setDescription(request.description());
+        document.setRfc(normalizeRfc(request.rfc()));
         document.setLogo(mapImage(request.logo()));
+    }
+
+    private String normalizeRfc(String rfc) {
+        if (rfc == null) {
+            return null;
+        }
+
+        String normalized = rfc.trim().toUpperCase(Locale.ROOT);
+        return normalized.isBlank() ? null : normalized;
     }
 
     private ImageMetadata mapImage(ImageMetadataRequest request) {

@@ -1,5 +1,6 @@
 package com.tap2eat.catalog.services.impl;
 
+import com.tap2eat.catalog.dtos.request.restaurant.CreateRestaurantRequest;
 import com.tap2eat.catalog.dtos.request.restaurant.UpdateRestaurantRequest;
 import com.tap2eat.catalog.exceptions.CatalogValidationException;
 import com.tap2eat.catalog.fixtures.CatalogTestDataFactory;
@@ -59,8 +60,42 @@ class RestaurantServiceImplTest {
 
         assertThat(restaurant.getOwnerAccountId()).isEqualTo(CatalogTestDataFactory.OWNER_ID);
         assertThat(restaurant.getName()).isEqualTo("Demo Restaurant");
+        assertThat(restaurant.getRfc()).isEqualTo(CatalogTestDataFactory.RESTAURANT_RFC);
         assertThat(restaurant.getIsActive()).isTrue();
         verify(authorizationService).validateCurrentAccountMatchesOwner(CatalogTestDataFactory.OWNER_ID);
+    }
+
+    @Test
+    void createRestaurant_shouldNormalizeRfcBeforeSaving() {
+        when(restaurantRepository.findByOwnerAccountId(CatalogTestDataFactory.OWNER_ID)).thenReturn(Optional.empty());
+        when(restaurantRepository.save(any(RestaurantDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        CreateRestaurantRequest request = new CreateRestaurantRequest(
+                CatalogTestDataFactory.OWNER_ID,
+                "Demo Restaurant",
+                "Fresh food",
+                " tap260520abc ",
+                CatalogTestDataFactory.imageRequest()
+        );
+
+        RestaurantDocument restaurant = restaurantService.createRestaurant(request);
+
+        assertThat(restaurant.getRfc()).isEqualTo(CatalogTestDataFactory.RESTAURANT_RFC);
+    }
+
+    @Test
+    void createRestaurant_shouldRejectInvalidRfc() {
+        when(restaurantRepository.findByOwnerAccountId(CatalogTestDataFactory.OWNER_ID)).thenReturn(Optional.empty());
+        CreateRestaurantRequest request = new CreateRestaurantRequest(
+                CatalogTestDataFactory.OWNER_ID,
+                "Demo Restaurant",
+                "Fresh food",
+                "INVALID-RFC",
+                CatalogTestDataFactory.imageRequest()
+        );
+
+        assertThatThrownBy(() -> restaurantService.createRestaurant(request))
+                .isInstanceOf(CatalogValidationException.class);
+        verify(restaurantRepository, never()).save(any());
     }
 
     @Test
@@ -114,6 +149,7 @@ class RestaurantServiceImplTest {
 
         assertThat(updated.getName()).isEqualTo("Updated Restaurant");
         assertThat(updated.getDescription()).isEqualTo("Updated description");
+        assertThat(updated.getRfc()).isEqualTo("UPD260520ABC");
         assertThat(updated.getLogo().getObjectKey()).isEqualTo("tap2eat/tests/request");
     }
 
@@ -121,6 +157,11 @@ class RestaurantServiceImplTest {
     void updateRestaurant_shouldFailForInvalidInputMissingRestaurantOrWrongOwner() {
         assertThatThrownBy(() -> restaurantService.updateRestaurant(" ", CatalogTestDataFactory.OWNER_ID, CatalogTestDataFactory.updateRestaurantRequest()))
                 .isInstanceOf(CatalogValidationException.class);
+        assertThatThrownBy(() -> restaurantService.updateRestaurant(
+                CatalogTestDataFactory.RESTAURANT_ID,
+                CatalogTestDataFactory.OWNER_ID,
+                new UpdateRestaurantRequest("Updated Restaurant", "Updated description", " ", CatalogTestDataFactory.imageRequest())
+        )).isInstanceOf(CatalogValidationException.class);
 
         when(restaurantRepository.findById("missing")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> restaurantService.updateRestaurant("missing", CatalogTestDataFactory.OWNER_ID, CatalogTestDataFactory.updateRestaurantRequest()))

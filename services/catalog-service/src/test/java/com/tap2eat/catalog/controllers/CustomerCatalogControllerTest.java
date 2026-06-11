@@ -17,8 +17,8 @@ class CustomerCatalogControllerTest {
 
     @Test
     void customerEndpoints_shouldDelegateToService() {
-        when(service.getActiveRestaurants()).thenReturn(List.of(new CustomerRestaurantResponse("r1", "Demo", null, null, true, true)));
-        when(service.searchActiveRestaurants("tacos")).thenReturn(List.of(new CustomerRestaurantResponse("r1", "Demo", null, null, true, true)));
+        when(service.getActiveRestaurants()).thenReturn(List.of(new CustomerRestaurantResponse("r1", "Demo", null, null, null, true, true)));
+        when(service.searchActiveRestaurants("tacos")).thenReturn(List.of(new CustomerRestaurantResponse("r1", "Demo", null, null, null, true, true)));
 
         assertThat(controller.getRestaurants()).hasSize(1);
         assertThat(controller.searchRestaurants("tacos")).hasSize(1);

@@ -28,6 +28,7 @@ public class CatalogResponseMapper {
                 document.getOwnerAccountId(),
                 document.getName(),
                 document.getDescription(),
+                document.getRfc(),
                 toImageMetadataResponse(document.getLogo()),
                 document.getIsActive(),
                 document.getCreatedAt(),

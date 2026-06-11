@@ -19,5 +19,6 @@ public class RestaurantDocument extends BaseDocument {
     private String ownerAccountId;
     private String name;
     private String description;
+    private String rfc;
     private ImageMetadata logo;
 }

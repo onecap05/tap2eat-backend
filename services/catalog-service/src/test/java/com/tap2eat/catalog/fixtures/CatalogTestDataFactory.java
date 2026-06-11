@@ -40,6 +40,7 @@ public final class CatalogTestDataFactory {
 
     public static final String OWNER_ID = "owner-1";
     public static final String RESTAURANT_ID = "restaurant-1";
+    public static final String RESTAURANT_RFC = "TAP260520ABC";
     public static final String BRANCH_ID = "branch-1";
     public static final String CATEGORY_ID = "category-1";
     public static final String PRODUCT_ID = "product-1";
@@ -57,6 +58,7 @@ public final class CatalogTestDataFactory {
         restaurant.setOwnerAccountId(ownerAccountId);
         restaurant.setName("Demo Restaurant");
         restaurant.setDescription("Fresh food");
+        restaurant.setRfc(RESTAURANT_RFC);
         restaurant.setLogo(imageMetadata());
         restaurant.setIsActive(Boolean.TRUE);
         restaurant.setDeletedAt(null);
@@ -225,11 +227,11 @@ public final class CatalogTestDataFactory {
     }
 
     public static CreateRestaurantRequest createRestaurantRequest() {
-        return new CreateRestaurantRequest(OWNER_ID, "Demo Restaurant", "Fresh food", imageRequest());
+        return new CreateRestaurantRequest(OWNER_ID, "Demo Restaurant", "Fresh food", RESTAURANT_RFC, imageRequest());
     }
 
     public static UpdateRestaurantRequest updateRestaurantRequest() {
-        return new UpdateRestaurantRequest("Updated Restaurant", "Updated description", imageRequest());
+        return new UpdateRestaurantRequest("Updated Restaurant", "Updated description", "UPD260520ABC", imageRequest());
     }
 
     public static CreateBranchRequest createBranchRequest() {

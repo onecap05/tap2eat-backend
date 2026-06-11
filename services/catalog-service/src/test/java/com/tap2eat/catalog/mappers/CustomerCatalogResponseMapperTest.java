@@ -35,6 +35,7 @@ class CustomerCatalogResponseMapperTest {
 
         assertThat(restaurant.open()).isTrue();
         assertThat(restaurant.name()).isEqualTo("Demo Restaurant");
+        assertThat(restaurant.rfc()).isEqualTo(CatalogTestDataFactory.RESTAURANT_RFC);
         assertThat(branch.open()).isTrue();
         assertThat(branch.availability().weeklySchedule()).hasSize(1);
         assertThat(category.available()).isTrue();

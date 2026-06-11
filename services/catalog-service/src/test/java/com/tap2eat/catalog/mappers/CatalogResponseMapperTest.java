@@ -32,6 +32,8 @@ class CatalogResponseMapperTest {
     void mapper_shouldMapDocumentsToOwnerResponses() {
         assertThat(mapper.toRestaurantResponse(CatalogTestDataFactory.restaurant()).ownerAccountId())
                 .isEqualTo(CatalogTestDataFactory.OWNER_ID);
+        assertThat(mapper.toRestaurantResponse(CatalogTestDataFactory.restaurant()).rfc())
+                .isEqualTo(CatalogTestDataFactory.RESTAURANT_RFC);
         assertThat(mapper.toBranchResponse(CatalogTestDataFactory.branch()).availability().weeklySchedule())
                 .hasSize(1);
         assertThat(mapper.toCategoryResponse(CatalogTestDataFactory.category()).image().objectKey())

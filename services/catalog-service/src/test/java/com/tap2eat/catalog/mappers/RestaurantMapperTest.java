@@ -18,6 +18,7 @@ class RestaurantMapperTest {
 
         assertThat(document.getOwnerAccountId()).isEqualTo(CatalogTestDataFactory.OWNER_ID);
         assertThat(document.getName()).isEqualTo("Demo Restaurant");
+        assertThat(document.getRfc()).isEqualTo(CatalogTestDataFactory.RESTAURANT_RFC);
         assertThat(document.getLogo().getObjectKey()).isEqualTo("tap2eat/tests/request");
         assertThat(document.getIsActive()).isTrue();
     }
@@ -32,6 +33,7 @@ class RestaurantMapperTest {
 
         assertThat(document.getName()).isEqualTo("Updated Restaurant");
         assertThat(document.getDescription()).isEqualTo("Updated description");
+        assertThat(document.getRfc()).isEqualTo("UPD260520ABC");
         assertThat(document.getLogo().getUrl()).isEqualTo("https://cdn.tap2eat.test/request.webp");
     }
 }

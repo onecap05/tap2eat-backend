@@ -6,6 +6,7 @@ public record CreateRestaurantRequest(
         String ownerAccountId,
         String name,
         String description,
+        String rfc,
         ImageMetadataRequest logo
 ) {
 }

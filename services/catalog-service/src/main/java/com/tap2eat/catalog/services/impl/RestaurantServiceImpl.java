@@ -43,7 +43,7 @@ public class RestaurantServiceImpl implements IRestaurantService {
 
     @Override
     public RestaurantDocument updateRestaurant(String restaurantId, String ownerAccountId, UpdateRestaurantRequest request) {
-        if (isBlank(restaurantId) || isBlank(ownerAccountId) || request == null) {
+        if (isBlank(restaurantId) || isBlank(ownerAccountId) || request == null || isBlank(request.rfc())) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_RESTAURANT_DATA);
         }
 
@@ -119,7 +119,7 @@ public class RestaurantServiceImpl implements IRestaurantService {
     }
 
     private void validateCreateRequest(CreateRestaurantRequest request) {
-        if (request == null || isBlank(request.ownerAccountId())) {
+        if (request == null || isBlank(request.ownerAccountId()) || isBlank(request.rfc())) {
             throw new CatalogValidationException(CatalogErrorCode.INVALID_RESTAURANT_DATA);
         }
     }

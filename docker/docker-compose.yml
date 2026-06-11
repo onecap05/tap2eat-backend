@@ -210,11 +210,13 @@ services:
     environment:
       ORDER_SERVICE_BASE_URL: "http://order-service:8085"
       CATALOG_SERVICE_BASE_URL: "http://catalog-service:8082"
+      FINANCE_SERVICE_BASE_URL: "http://finance-service:8083"
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-tap2eat-internal-dev-token}
       REQUEST_TIMEOUT_SECONDS: 10
     depends_on:
       - order-service
       - catalog-service
+      - finance-service
     ports:
       - "8000:8000"
     restart: unless-stopped

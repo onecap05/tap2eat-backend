@@ -10,6 +10,6 @@ public static class DatabaseInitializer
 
         var dbContext = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
 
-        await dbContext.Database.EnsureCreatedAsync();
+        await dbContext.Database.MigrateAsync();
     }
 }

@@ -13,6 +13,8 @@ public sealed class PaymentMapperTests
         var payment = PaymentTestData.Payment(status: PaymentStatus.Approved);
         payment.Provider = "SIMULATED";
         payment.ProviderReference = "provider-ref";
+        payment.AmountReceived = 200m;
+        payment.ChangeAmount = 49.25m;
         payment.ApprovedAt = DateTime.UtcNow;
 
         var response = PaymentMapper.ToResponse(payment);
@@ -27,6 +29,8 @@ public sealed class PaymentMapperTests
         response.Status.Should().Be(payment.Status);
         response.Provider.Should().Be(payment.Provider);
         response.ProviderReference.Should().Be(payment.ProviderReference);
+        response.AmountReceived.Should().Be(payment.AmountReceived);
+        response.ChangeAmount.Should().Be(payment.ChangeAmount);
         response.CreatedAt.Should().Be(payment.CreatedAt);
         response.UpdatedAt.Should().Be(payment.UpdatedAt);
         response.ApprovedAt.Should().Be(payment.ApprovedAt);

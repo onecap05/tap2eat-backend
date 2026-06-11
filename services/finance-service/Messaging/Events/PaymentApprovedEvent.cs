@@ -40,6 +40,12 @@ public sealed class PaymentApprovedEvent
     [JsonPropertyName("ProviderReference")]
     public string? ProviderReference { get; set; }
 
+    [JsonPropertyName("AmountReceived")]
+    public decimal? AmountReceived { get; set; }
+
+    [JsonPropertyName("ChangeAmount")]
+    public decimal? ChangeAmount { get; set; }
+
     [JsonPropertyName("OccurredAt")]
     public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
 }

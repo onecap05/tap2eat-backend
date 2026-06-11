@@ -75,6 +75,14 @@ public static class PaymentTestData
         };
     }
 
+    public static ConfirmCashPaymentRequest ConfirmCashRequest(decimal amountReceived = 200m)
+    {
+        return new ConfirmCashPaymentRequest
+        {
+            AmountReceived = amountReceived
+        };
+    }
+
     public static RejectPaymentRequest RejectRequest(string reason = "Insufficient funds")
     {
         return new RejectPaymentRequest

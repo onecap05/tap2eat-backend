@@ -58,6 +58,12 @@ public sealed class FinanceDbContext : DbContext
         payment.Property(entity => entity.ProviderReference)
             .HasMaxLength(128);
 
+        payment.Property(entity => entity.AmountReceived)
+            .HasPrecision(18, 2);
+
+        payment.Property(entity => entity.ChangeAmount)
+            .HasPrecision(18, 2);
+
         payment.Property(entity => entity.RejectionReason)
             .HasMaxLength(512);
 

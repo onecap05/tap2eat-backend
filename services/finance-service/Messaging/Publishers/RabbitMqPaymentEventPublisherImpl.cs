@@ -42,7 +42,9 @@ public sealed class RabbitMqPaymentEventPublisherImpl : IPaymentEventPublisher
             Currency = payment.Currency,
             Status = payment.Status.ToString(),
             Provider = payment.Provider,
-            ProviderReference = payment.ProviderReference
+            ProviderReference = payment.ProviderReference,
+            AmountReceived = payment.AmountReceived,
+            ChangeAmount = payment.ChangeAmount
         };
 
         return PublishAsync(PaymentApprovedRoutingKey, paymentEvent, cancellationToken);

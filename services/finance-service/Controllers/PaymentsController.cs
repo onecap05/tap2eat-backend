@@ -88,6 +88,20 @@ public sealed class PaymentsController : ControllerBase
         return Ok(payment);
     }
 
+    [HttpPatch("{id:guid}/cash/confirm")]
+    public async Task<ActionResult<PaymentResponse>> ConfirmCashPayment(
+        Guid id,
+        [FromBody] ConfirmCashPaymentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var payment = await _paymentService.ConfirmCashPaymentAsync(
+            id,
+            request,
+            cancellationToken);
+
+        return Ok(payment);
+    }
+
     [HttpPatch("{id:guid}/reject")]
     public async Task<ActionResult<PaymentResponse>> Reject(
         Guid id,
